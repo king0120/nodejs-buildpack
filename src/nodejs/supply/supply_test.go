@@ -32,6 +32,8 @@ var _ = Describe("Supply", func() {
 		mockManifest      *MockManifest
 		mockCommandRunner *MockCommandRunner
 		installNode       func(libbuildpack.Dependency, string)
+		installYarn       func(libbuildpack.Dependency, string)
+		installOnlyYarn   func(string, string)
 	)
 
 	BeforeEach(func() {
@@ -66,6 +68,29 @@ var _ = Describe("Supply", func() {
 			err = ioutil.WriteFile(filepath.Join(nodeDir, "bin", "npm"), []byte("npm exe"), 0644)
 			Expect(err).To(BeNil())
 		}
+
+		installYarn = func(_ libbuildpack.Dependency, yarnDir string) {
+			err := os.MkdirAll(filepath.Join(yarnDir, "dist", "bin"), 0755)
+			Expect(err).To(BeNil())
+
+			err = ioutil.WriteFile(filepath.Join(yarnDir, "dist", "bin", "yarn"), []byte("yarn exe"), 0644)
+			Expect(err).To(BeNil())
+
+			err = ioutil.WriteFile(filepath.Join(yarnDir, "dist", "bin", "yarnpkg"), []byte("yarnpkg exe"), 0644)
+			Expect(err).To(BeNil())
+		}
+
+		installOnlyYarn = func(_ string, yarnDir string) {
+			err := os.MkdirAll(filepath.Join(yarnDir, "dist", "bin"), 0755)
+			Expect(err).To(BeNil())
+
+			err = ioutil.WriteFile(filepath.Join(yarnDir, "dist", "bin", "yarn"), []byte("yarn exe"), 0644)
+			Expect(err).To(BeNil())
+
+			err = ioutil.WriteFile(filepath.Join(yarnDir, "dist", "bin", "yarnpkg"), []byte("yarnpkg exe"), 0644)
+			Expect(err).To(BeNil())
+		}
+
 	})
 
 	JustBeforeEach(func() {
@@ -289,6 +314,68 @@ var _ = Describe("Supply", func() {
 
 				err = supplier.InstallNode()
 				Expect(err).To(BeNil())
+			})
+		})
+	})
+
+	Describe("InstallYarn", func() {
+		var yarnInstallDir string
+
+		BeforeEach(func() {
+			yarnInstallDir = filepath.Join(depsDir, depsIdx, "yarn")
+			mockManifest.EXPECT().InstallOnlyVersion("yarn", yarnInstallDir).Do(installOnlyYarn).Return(nil)
+		})
+
+		Context("yarn version is unset", func() {
+			It("installs the only version in the manifest", func() {
+				supplier.Yarn = ""
+
+				err = supplier.InstallYarn()
+				Expect(err).To(BeNil())
+			})
+
+			It("creates a symlink in <depDir>/bin", func() {
+				supplier.Yarn = ""
+				err = supplier.InstallYarn()
+				Expect(err).To(BeNil())
+
+				link, err := os.Readlink(filepath.Join(depsDir, depsIdx, "bin", "yarn"))
+				Expect(err).To(BeNil())
+				Expect(link).To(Equal("../yarn/dist/bin/yarn"))
+
+				link, err = os.Readlink(filepath.Join(depsDir, depsIdx, "bin", "yarnpkg"))
+				Expect(err).To(BeNil())
+				Expect(link).To(Equal("../yarn/dist/bin/yarnpkg"))
+			})
+		})
+
+		Context("requested yarn version is in manifest", func() {
+			BeforeEach(func() {
+				versions := []string{"0.32.5"}
+				mockManifest.EXPECT().AllDependencyVersions("yarn").Return(versions)
+			})
+
+			It("installs the correct version from the manifest", func() {
+				supplier.Yarn = "0.32.x"
+				err = supplier.InstallYarn()
+				Expect(err).To(BeNil())
+
+				Expect(buffer.String()).To(Equal(""))
+			})
+		})
+
+		Context("requested yarn version is not in manifest", func() {
+			BeforeEach(func() {
+				versions := []string{"0.32.5"}
+				mockManifest.EXPECT().AllDependencyVersions("yarn").Return(versions)
+			})
+
+			It("installs the version from the manifest and warns the user", func() {
+				supplier.Yarn = "1.0.x"
+				err = supplier.InstallYarn()
+				Expect(err).To(BeNil())
+
+				Expect(buffer.String()).To(ContainSubstring("**WARNING** package.json requested yarn version 1.0.x, but buildpack only includes yarn version 0.32.5"))
 			})
 		})
 	})

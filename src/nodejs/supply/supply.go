@@ -146,6 +146,7 @@ func (ss *Supplier) InstallNPM() error {
 	}
 
 	ss.Stager.Log.Info("Downloading and installing npm %s (replacing version %s)...", ss.NPM, npmVersion)
+
 	if err := ss.Stager.Command.Execute(ss.Stager.BuildDir, ioutil.Discard, ioutil.Discard, "npm", "install", "--unsafe-perm", "--quiet", "-g", "npm@"+ss.NPM); err != nil {
 		ss.Stager.Log.Error("We're unable to download the version of npm you've provided (%s).\nPlease remove the npm version specification in package.json", ss.NPM)
 		return err
@@ -153,5 +154,23 @@ func (ss *Supplier) InstallNPM() error {
 	return nil
 }
 func (ss *Supplier) InstallYarn() error {
+	if ss.Yarn != "" {
+		versions := ss.Stager.Manifest.AllDependencyVersions("yarn")
+		_, err := libbuildpack.FindMatchingVersion(ss.Yarn, versions)
+		if err != nil {
+			ss.Stager.Log.Warning("package.json requested yarn version %s, but buildpack only includes yarn version %s", ss.Yarn, versions[0])
+		}
+	}
+
+	yarnInstallDir := filepath.Join(ss.Stager.DepDir(), "yarn")
+
+	if err := ss.Stager.Manifest.InstallOnlyVersion("yarn", yarnInstallDir); err != nil {
+		return err
+	}
+
+	if err := ss.Stager.LinkDirectoryInDepDir(filepath.Join(yarnInstallDir, "dist", "bin"), "bin"); err != nil {
+		return err
+	}
+
 	return nil
 }

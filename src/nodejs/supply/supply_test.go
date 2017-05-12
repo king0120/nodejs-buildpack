@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/cloudfoundry/libbuildpack"
+	"github.com/cloudfoundry/libbuildpack/ansicleaner"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -40,7 +41,7 @@ var _ = Describe("Supply", func() {
 		buffer = new(bytes.Buffer)
 
 		logger = libbuildpack.NewLogger()
-		logger.SetOutput(buffer)
+		logger.SetOutput(ansicleaner.New(buffer))
 	})
 
 	JustBeforeEach(func() {
@@ -157,6 +158,39 @@ var _ = Describe("Supply", func() {
 					Expect(supplier.PackageJSON.Engines.NPM).To(Equal(""))
 					Expect(supplier.PackageJSON.Engines.Iojs).To(Equal(""))
 				})
+			})
+		})
+	})
+
+	Describe("WarnNodeEngine", func() {
+		Context("node version not specified", func() {
+			It("warns that node version hasn't been set", func() {
+				supplier.WarnNodeEngine()
+				Expect(buffer.String()).To(ContainSubstring("**WARNING** Node version not specified in package.json. See: http://docs.cloudfoundry.org/buildpacks/node/node-tips.html"))
+			})
+		})
+
+		Context("node version is *", func() {
+			It("warns that the node semver is dangerous", func() {
+				supplier.PackageJSON.Engines.Node = "*"
+				supplier.WarnNodeEngine()
+				Expect(buffer.String()).To(ContainSubstring("**WARNING** Dangerous semver range (*) in engines.node. See: http://docs.cloudfoundry.org/buildpacks/node/node-tips.html"))
+			})
+		})
+
+		Context("node version is >x", func() {
+			It("warns that the node semver is dangerous", func() {
+				supplier.PackageJSON.Engines.Node = ">5"
+				supplier.WarnNodeEngine()
+				Expect(buffer.String()).To(ContainSubstring("**WARNING** Dangerous semver range (>) in engines.node. See: http://docs.cloudfoundry.org/buildpacks/node/node-tips.html"))
+			})
+		})
+
+		Context("node version is specified", func() {
+			It("warns that the node semver is dangerous", func() {
+				supplier.PackageJSON.Engines.Node = "~>6"
+				supplier.WarnNodeEngine()
+				Expect(buffer.String()).To(Equal(""))
 			})
 		})
 	})

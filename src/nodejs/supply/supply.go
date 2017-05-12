@@ -3,6 +3,7 @@ package supply
 import (
 	"errors"
 	"path/filepath"
+	"strings"
 
 	"github.com/cloudfoundry/libbuildpack"
 )
@@ -29,6 +30,8 @@ func Run(ss *Supplier) error {
 		return err
 	}
 
+	ss.WarnNodeEngine()
+
 	return nil
 }
 
@@ -43,4 +46,19 @@ func (ss *Supplier) LoadPackageJSON() error {
 	}
 
 	return nil
+}
+
+func (ss *Supplier) WarnNodeEngine() {
+	docsLink := "http://docs.cloudfoundry.org/buildpacks/node/node-tips.html"
+
+	if ss.PackageJSON.Engines.Node == "" {
+		ss.Stager.Log.Warning("Node version not specified in package.json. See: %s", docsLink)
+	}
+	if ss.PackageJSON.Engines.Node == "*" {
+		ss.Stager.Log.Warning("Dangerous semver range (*) in engines.node. See: %s", docsLink)
+	}
+	if strings.HasPrefix(ss.PackageJSON.Engines.Node, ">") {
+		ss.Stager.Log.Warning("Dangerous semver range (>) in engines.node. See: %s", docsLink)
+	}
+	return
 }

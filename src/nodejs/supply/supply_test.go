@@ -324,6 +324,10 @@ var _ = Describe("Supply", func() {
 		BeforeEach(func() {
 			yarnInstallDir = filepath.Join(depsDir, depsIdx, "yarn")
 			mockManifest.EXPECT().InstallOnlyVersion("yarn", yarnInstallDir).Do(installOnlyYarn).Return(nil)
+
+			mockCommandRunner.EXPECT().Execute(buildDir, gomock.Any(), gomock.Any(), "yarn", "--version").Do(func(_ string, buffer io.Writer, _ io.Writer, _ string, _ string) {
+				buffer.Write([]byte("0.32.5\n"))
+			}).Return(nil)
 		})
 
 		Context("yarn version is unset", func() {
@@ -332,6 +336,7 @@ var _ = Describe("Supply", func() {
 
 				err = supplier.InstallYarn()
 				Expect(err).To(BeNil())
+				Expect(buffer.String()).To(ContainSubstring("Installed yarn 0.32.5"))
 			})
 
 			It("creates a symlink in <depDir>/bin", func() {
@@ -360,7 +365,7 @@ var _ = Describe("Supply", func() {
 				err = supplier.InstallYarn()
 				Expect(err).To(BeNil())
 
-				Expect(buffer.String()).To(Equal(""))
+				Expect(buffer.String()).To(ContainSubstring("Installed yarn 0.32.5"))
 			})
 		})
 
@@ -376,6 +381,7 @@ var _ = Describe("Supply", func() {
 				Expect(err).To(BeNil())
 
 				Expect(buffer.String()).To(ContainSubstring("**WARNING** package.json requested yarn version 1.0.x, but buildpack only includes yarn version 0.32.5"))
+				Expect(buffer.String()).To(ContainSubstring("Installed yarn 0.32.5"))
 			})
 		})
 	})

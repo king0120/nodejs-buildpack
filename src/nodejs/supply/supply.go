@@ -129,8 +129,7 @@ func (ss *Supplier) InstallNode() error {
 
 func (ss *Supplier) InstallNPM() error {
 	buffer := new(bytes.Buffer)
-	err := ss.Stager.Command.Execute(ss.Stager.BuildDir, buffer, buffer, "npm", "--version")
-	if err != nil {
+	if err := ss.Stager.Command.Execute(ss.Stager.BuildDir, buffer, buffer, "npm", "--version"); err != nil {
 		return err
 	}
 
@@ -153,6 +152,7 @@ func (ss *Supplier) InstallNPM() error {
 	}
 	return nil
 }
+
 func (ss *Supplier) InstallYarn() error {
 	if ss.Yarn != "" {
 		versions := ss.Stager.Manifest.AllDependencyVersions("yarn")
@@ -171,6 +171,14 @@ func (ss *Supplier) InstallYarn() error {
 	if err := ss.Stager.LinkDirectoryInDepDir(filepath.Join(yarnInstallDir, "dist", "bin"), "bin"); err != nil {
 		return err
 	}
+
+	buffer := new(bytes.Buffer)
+	if err := ss.Stager.Command.Execute(ss.Stager.BuildDir, buffer, buffer, "yarn", "--version"); err != nil {
+		return err
+	}
+
+	yarnVersion := strings.TrimSpace(buffer.String())
+	ss.Stager.Log.Info("Installed yarn %s", yarnVersion)
 
 	return nil
 }

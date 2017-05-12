@@ -107,10 +107,17 @@ var _ = Describe("Supply", func() {
 					err = supplier.LoadPackageJSON()
 					Expect(err).To(BeNil())
 
-					Expect(supplier.PackageJSON.Engines.Node).To(Equal("node-y"))
-					Expect(supplier.PackageJSON.Engines.Yarn).To(Equal("*"))
-					Expect(supplier.PackageJSON.Engines.NPM).To(Equal("npm-x"))
-					Expect(supplier.PackageJSON.Engines.Iojs).To(Equal(""))
+					Expect(supplier.Node).To(Equal("node-y"))
+					Expect(supplier.Yarn).To(Equal("*"))
+					Expect(supplier.NPM).To(Equal("npm-x"))
+				})
+
+				It("logs the node and npm versions", func() {
+					err = supplier.LoadPackageJSON()
+					Expect(err).To(BeNil())
+
+					Expect(buffer.String()).To(ContainSubstring("engines.node (package.json): node-y"))
+					Expect(buffer.String()).To(ContainSubstring("engines.npm (package.json): npm-x"))
 				})
 
 				Context("the engines section contains iojs", func() {
@@ -153,10 +160,17 @@ var _ = Describe("Supply", func() {
 					err = supplier.LoadPackageJSON()
 					Expect(err).To(BeNil())
 
-					Expect(supplier.PackageJSON.Engines.Node).To(Equal(""))
-					Expect(supplier.PackageJSON.Engines.Yarn).To(Equal(""))
-					Expect(supplier.PackageJSON.Engines.NPM).To(Equal(""))
-					Expect(supplier.PackageJSON.Engines.Iojs).To(Equal(""))
+					Expect(supplier.Node).To(Equal(""))
+					Expect(supplier.Yarn).To(Equal(""))
+					Expect(supplier.NPM).To(Equal(""))
+				})
+
+				It("logs that node and npm are not set", func() {
+					err = supplier.LoadPackageJSON()
+					Expect(err).To(BeNil())
+
+					Expect(buffer.String()).To(ContainSubstring("engines.node (package.json): unspecified"))
+					Expect(buffer.String()).To(ContainSubstring("engines.npm (package.json): unspecified (use default)"))
 				})
 			})
 		})
@@ -172,7 +186,7 @@ var _ = Describe("Supply", func() {
 
 		Context("node version is *", func() {
 			It("warns that the node semver is dangerous", func() {
-				supplier.PackageJSON.Engines.Node = "*"
+				supplier.Node = "*"
 				supplier.WarnNodeEngine()
 				Expect(buffer.String()).To(ContainSubstring("**WARNING** Dangerous semver range (*) in engines.node. See: http://docs.cloudfoundry.org/buildpacks/node/node-tips.html"))
 			})
@@ -180,18 +194,24 @@ var _ = Describe("Supply", func() {
 
 		Context("node version is >x", func() {
 			It("warns that the node semver is dangerous", func() {
-				supplier.PackageJSON.Engines.Node = ">5"
+				supplier.Node = ">5"
 				supplier.WarnNodeEngine()
 				Expect(buffer.String()).To(ContainSubstring("**WARNING** Dangerous semver range (>) in engines.node. See: http://docs.cloudfoundry.org/buildpacks/node/node-tips.html"))
 			})
 		})
 
-		Context("node version is specified", func() {
-			It("warns that the node semver is dangerous", func() {
-				supplier.PackageJSON.Engines.Node = "~>6"
+		Context("node version is 'safe' semver", func() {
+			It("does not log anything", func() {
+				supplier.Node = "~>6"
 				supplier.WarnNodeEngine()
 				Expect(buffer.String()).To(Equal(""))
 			})
+		})
+	})
+
+	Describe("InstallNode", func() {
+		Context("", func() {
+
 		})
 	})
 })

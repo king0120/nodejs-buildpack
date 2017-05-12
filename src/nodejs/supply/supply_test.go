@@ -9,20 +9,26 @@ import (
 
 	"github.com/cloudfoundry/libbuildpack"
 	"github.com/cloudfoundry/libbuildpack/ansicleaner"
+	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
+//go:generate mockgen -source=../vendor/github.com/cloudfoundry/libbuildpack/manifest.go --destination=mocks_manifest_test.go --package=supply_test --imports=.=github.com/cloudfoundry/libbuildpack
+
 var _ = Describe("Supply", func() {
 	var (
-		err      error
-		buildDir string
-		depsDir  string
-		depsIdx  string
-		depDir   string
-		supplier *supply.Supplier
-		logger   libbuildpack.Logger
-		buffer   *bytes.Buffer
+		err          error
+		buildDir     string
+		depsDir      string
+		depsIdx      string
+		depDir       string
+		supplier     *supply.Supplier
+		logger       libbuildpack.Logger
+		buffer       *bytes.Buffer
+		mockCtrl     *gomock.Controller
+		mockManifest *MockManifest
+		installNode  func(libbuildpack.Dependency, string)
 	)
 
 	BeforeEach(func() {
@@ -42,6 +48,20 @@ var _ = Describe("Supply", func() {
 
 		logger = libbuildpack.NewLogger()
 		logger.SetOutput(ansicleaner.New(buffer))
+
+		mockCtrl = gomock.NewController(GinkgoT())
+		mockManifest = NewMockManifest(mockCtrl)
+
+		installNode = func(_ libbuildpack.Dependency, nodeDir string) {
+			err := os.MkdirAll(filepath.Join(nodeDir, "bin"), 0755)
+			Expect(err).To(BeNil())
+
+			err = ioutil.WriteFile(filepath.Join(nodeDir, "bin", "node"), []byte("node exe"), 0644)
+			Expect(err).To(BeNil())
+
+			err = ioutil.WriteFile(filepath.Join(nodeDir, "bin", "npm"), []byte("npm exe"), 0644)
+			Expect(err).To(BeNil())
+		}
 	})
 
 	JustBeforeEach(func() {
@@ -50,6 +70,7 @@ var _ = Describe("Supply", func() {
 			DepsDir:  depsDir,
 			DepsIdx:  depsIdx,
 			Log:      logger,
+			Manifest: mockManifest,
 		}
 
 		supplier = &supply.Supplier{
@@ -58,6 +79,8 @@ var _ = Describe("Supply", func() {
 	})
 
 	AfterEach(func() {
+		mockCtrl.Finish()
+
 		err = os.RemoveAll(depsDir)
 		Expect(err).To(BeNil())
 	})
@@ -210,8 +233,58 @@ var _ = Describe("Supply", func() {
 	})
 
 	Describe("InstallNode", func() {
-		Context("", func() {
+		var nodeInstallDir string
 
+		BeforeEach(func() {
+			nodeInstallDir = filepath.Join(depsDir, depsIdx, "node")
+		})
+
+		Context("node version has pessimistic operator", func() {
+			BeforeEach(func() {
+				versions := []string{"6.10.2", "6.11.1", "4.8.2", "4.8.3"}
+				mockManifest.EXPECT().AllDependencyVersions("node").Return(versions)
+			})
+
+			It("installs the correct version from the manifest", func() {
+				dep := libbuildpack.Dependency{Name: "node", Version: "4.8.3"}
+				mockManifest.EXPECT().InstallDependency(dep, nodeInstallDir).Do(installNode).Return(nil)
+
+				supplier.Node = "~>4"
+				err = supplier.InstallNode()
+				Expect(err).To(BeNil())
+			})
+
+			It("creates a symlink in <depDir>/bin", func() {
+				dep := libbuildpack.Dependency{Name: "node", Version: "4.8.3"}
+				mockManifest.EXPECT().InstallDependency(dep, nodeInstallDir).Do(installNode).Return(nil)
+
+				supplier.Node = "~>4"
+				err = supplier.InstallNode()
+				Expect(err).To(BeNil())
+
+				link, err := os.Readlink(filepath.Join(depsDir, depsIdx, "bin", "node"))
+				Expect(err).To(BeNil())
+
+				Expect(link).To(Equal("../node/bin/node"))
+
+				link, err = os.Readlink(filepath.Join(depsDir, depsIdx, "bin", "npm"))
+				Expect(err).To(BeNil())
+
+				Expect(link).To(Equal("../node/bin/npm"))
+			})
+		})
+
+		Context("node version is unset", func() {
+			It("installs the default version from the manifest", func() {
+				dep := libbuildpack.Dependency{Name: "node", Version: "6.10.2"}
+				mockManifest.EXPECT().DefaultVersion("node").Return(dep, nil)
+				mockManifest.EXPECT().InstallDependency(dep, nodeInstallDir).Do(installNode).Return(nil)
+
+				supplier.Node = ""
+
+				err = supplier.InstallNode()
+				Expect(err).To(BeNil())
+			})
 		})
 	})
 })

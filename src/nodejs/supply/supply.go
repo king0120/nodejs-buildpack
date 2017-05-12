@@ -100,7 +100,29 @@ func (ss *Supplier) WarnNodeEngine() {
 }
 
 func (ss *Supplier) InstallNode() error {
-	return nil
+	var dep libbuildpack.Dependency
+
+	if ss.Node != "" {
+		versions := ss.Stager.Manifest.AllDependencyVersions("node")
+		ver, err := libbuildpack.FindMatchingVersion(ss.Node, versions)
+		if err != nil {
+			return err
+		}
+		dep.Name = "node"
+		dep.Version = ver
+	} else {
+		var err error
+
+		dep, err = ss.Stager.Manifest.DefaultVersion("node")
+		if err != nil {
+			return err
+		}
+	}
+
+	if err := ss.Stager.Manifest.InstallDependency(dep, filepath.Join(ss.Stager.DepDir(), "node")); err != nil {
+		return err
+	}
+	return ss.Stager.LinkDirectoryInDepDir(filepath.Join(ss.Stager.DepDir(), "node", "bin"), "bin")
 }
 
 func (ss *Supplier) InstallNPM() error {

@@ -3,6 +3,7 @@ package supply
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
@@ -49,6 +50,11 @@ func Run(ss *Supplier) error {
 
 	if err := ss.InstallYarn(); err != nil {
 		ss.Stager.Log.Error("Unable to install yarn: %s", err.Error())
+		return err
+	}
+
+	if err := ss.ExportNodeHome(); err != nil {
+		ss.Stager.Log.Error("Unable to setup NODE_HOME: %s", err.Error())
 		return err
 	}
 
@@ -181,4 +187,12 @@ func (ss *Supplier) InstallYarn() error {
 	ss.Stager.Log.Info("Installed yarn %s", yarnVersion)
 
 	return nil
+}
+
+func (ss *Supplier) ExportNodeHome() error {
+	if err := ss.Stager.WriteEnvFile("NODE_HOME", filepath.Join(ss.Stager.DepDir(), "node")); err != nil {
+		return err
+	}
+
+	return ss.Stager.WriteProfileD("node.sh", fmt.Sprintf("export NODE_HOME=%s", filepath.Join("$DEPS_DIR", ss.Stager.DepsIdx, "node")))
 }

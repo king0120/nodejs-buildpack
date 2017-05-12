@@ -427,4 +427,26 @@ var _ = Describe("Supply", func() {
 			})
 		})
 	})
+
+	Describe("ExportNodeHome", func() {
+		It("writes an env file for other buildpacks", func() {
+			err = supplier.ExportNodeHome()
+			Expect(err).To(BeNil())
+
+			contents, err := ioutil.ReadFile(filepath.Join(depsDir, depsIdx, "env", "NODE_HOME"))
+			Expect(err).To(BeNil())
+
+			Expect(string(contents)).To(Equal(filepath.Join(depsDir, depsIdx, "node")))
+		})
+
+		It("writes profile.d script for runtime", func() {
+			err = supplier.ExportNodeHome()
+			Expect(err).To(BeNil())
+
+			contents, err := ioutil.ReadFile(filepath.Join(depsDir, depsIdx, "profile.d", "node.sh"))
+			Expect(err).To(BeNil())
+
+			Expect(string(contents)).To(Equal("export NODE_HOME=" + filepath.Join("$DEPS_DIR", depsIdx, "node")))
+		})
+	})
 })

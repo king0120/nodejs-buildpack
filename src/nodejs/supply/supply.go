@@ -1,7 +1,9 @@
 package supply
 
 import (
+	"bytes"
 	"errors"
+	"io/ioutil"
 	"path/filepath"
 	"strings"
 
@@ -41,12 +43,12 @@ func Run(ss *Supplier) error {
 	}
 
 	if err := ss.InstallNPM(); err != nil {
-		ss.Stager.Log.Error("Unable to install node: %s", err.Error())
+		ss.Stager.Log.Error("Unable to install npm: %s", err.Error())
 		return err
 	}
 
 	if err := ss.InstallYarn(); err != nil {
-		ss.Stager.Log.Error("Unable to install node: %s", err.Error())
+		ss.Stager.Log.Error("Unable to install yarn: %s", err.Error())
 		return err
 	}
 
@@ -126,6 +128,28 @@ func (ss *Supplier) InstallNode() error {
 }
 
 func (ss *Supplier) InstallNPM() error {
+	buffer := new(bytes.Buffer)
+	err := ss.Stager.Command.Execute(ss.Stager.BuildDir, buffer, buffer, "npm", "--version")
+	if err != nil {
+		return err
+	}
+
+	npmVersion := strings.TrimSpace(buffer.String())
+
+	if ss.NPM == "" {
+		ss.Stager.Log.Info("Using default npm version: %s", npmVersion)
+		return nil
+	}
+	if ss.NPM == npmVersion {
+		ss.Stager.Log.Info("npm %s already installed with node", npmVersion)
+		return nil
+	}
+
+	ss.Stager.Log.Info("Downloading and installing npm %s (replacing version %s)...", ss.NPM, npmVersion)
+	if err := ss.Stager.Command.Execute(ss.Stager.BuildDir, ioutil.Discard, ioutil.Discard, "npm", "install", "--unsafe-perm", "--quiet", "-g", "npm@"+ss.NPM); err != nil {
+		ss.Stager.Log.Error("We're unable to download the version of npm you've provided (%s).\nPlease remove the npm version specification in package.json", ss.NPM)
+		return err
+	}
 	return nil
 }
 func (ss *Supplier) InstallYarn() error {

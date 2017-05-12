@@ -2,6 +2,7 @@ package supply_test
 
 import (
 	"bytes"
+	"io"
 	"io/ioutil"
 	"nodejs/supply"
 	"os"
@@ -15,20 +16,22 @@ import (
 )
 
 //go:generate mockgen -source=../vendor/github.com/cloudfoundry/libbuildpack/manifest.go --destination=mocks_manifest_test.go --package=supply_test --imports=.=github.com/cloudfoundry/libbuildpack
+//go:generate mockgen -source=../vendor/github.com/cloudfoundry/libbuildpack/command_runner.go --destination=mocks_command_runner_test.go --package=supply_test
 
 var _ = Describe("Supply", func() {
 	var (
-		err          error
-		buildDir     string
-		depsDir      string
-		depsIdx      string
-		depDir       string
-		supplier     *supply.Supplier
-		logger       libbuildpack.Logger
-		buffer       *bytes.Buffer
-		mockCtrl     *gomock.Controller
-		mockManifest *MockManifest
-		installNode  func(libbuildpack.Dependency, string)
+		err               error
+		buildDir          string
+		depsDir           string
+		depsIdx           string
+		depDir            string
+		supplier          *supply.Supplier
+		logger            libbuildpack.Logger
+		buffer            *bytes.Buffer
+		mockCtrl          *gomock.Controller
+		mockManifest      *MockManifest
+		mockCommandRunner *MockCommandRunner
+		installNode       func(libbuildpack.Dependency, string)
 	)
 
 	BeforeEach(func() {
@@ -51,6 +54,7 @@ var _ = Describe("Supply", func() {
 
 		mockCtrl = gomock.NewController(GinkgoT())
 		mockManifest = NewMockManifest(mockCtrl)
+		mockCommandRunner = NewMockCommandRunner(mockCtrl)
 
 		installNode = func(_ libbuildpack.Dependency, nodeDir string) {
 			err := os.MkdirAll(filepath.Join(nodeDir, "bin"), 0755)
@@ -71,6 +75,7 @@ var _ = Describe("Supply", func() {
 			DepsIdx:  depsIdx,
 			Log:      logger,
 			Manifest: mockManifest,
+			Command:  mockCommandRunner,
 		}
 
 		supplier = &supply.Supplier{
@@ -239,7 +244,7 @@ var _ = Describe("Supply", func() {
 			nodeInstallDir = filepath.Join(depsDir, depsIdx, "node")
 		})
 
-		Context("node version has pessimistic operator", func() {
+		Context("node version use semver", func() {
 			BeforeEach(func() {
 				versions := []string{"6.10.2", "6.11.1", "4.8.2", "4.8.3"}
 				mockManifest.EXPECT().AllDependencyVersions("node").Return(versions)
@@ -255,10 +260,10 @@ var _ = Describe("Supply", func() {
 			})
 
 			It("creates a symlink in <depDir>/bin", func() {
-				dep := libbuildpack.Dependency{Name: "node", Version: "4.8.3"}
+				dep := libbuildpack.Dependency{Name: "node", Version: "6.10.2"}
 				mockManifest.EXPECT().InstallDependency(dep, nodeInstallDir).Do(installNode).Return(nil)
 
-				supplier.Node = "~>4"
+				supplier.Node = "6.10.*"
 				err = supplier.InstallNode()
 				Expect(err).To(BeNil())
 
@@ -284,6 +289,48 @@ var _ = Describe("Supply", func() {
 
 				err = supplier.InstallNode()
 				Expect(err).To(BeNil())
+			})
+		})
+	})
+
+	Describe("InstallNPM", func() {
+		BeforeEach(func() {
+			mockCommandRunner.EXPECT().Execute(buildDir, gomock.Any(), gomock.Any(), "npm", "--version").Do(func(_ string, buffer io.Writer, _ io.Writer, _ string, _ string) {
+				buffer.Write([]byte("1.2.3\n"))
+			}).Return(nil)
+		})
+
+		Context("npm version is not set", func() {
+			It("uses the version of npm packaged with node", func() {
+				err = supplier.InstallNPM()
+				Expect(err).To(BeNil())
+
+				Expect(buffer.String()).To(ContainSubstring("Using default npm version: 1.2.3"))
+			})
+		})
+
+		Context("npm version is set", func() {
+			Context("requested version is already installed", func() {
+				It("Uses the version of npm packaged with node", func() {
+					supplier.NPM = "1.2.3"
+
+					err = supplier.InstallNPM()
+					Expect(err).To(BeNil())
+
+					Expect(buffer.String()).To(ContainSubstring("npm 1.2.3 already installed with node"))
+				})
+			})
+
+			It("installs the requested npm version using packaged npm", func() {
+				gomock.InOrder(
+					mockCommandRunner.EXPECT().Execute(buildDir, gomock.Any(), gomock.Any(), "npm", "install", "--unsafe-perm", "--quiet", "-g", "npm@4.5.6").Return(nil),
+				)
+				supplier.NPM = "4.5.6"
+
+				err = supplier.InstallNPM()
+				Expect(err).To(BeNil())
+
+				Expect(buffer.String()).To(ContainSubstring("Downloading and installing npm 4.5.6 (replacing version 1.2.3)..."))
 			})
 		})
 	})

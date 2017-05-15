@@ -30,11 +30,11 @@ func main() {
 		os.Exit(13)
 	}
 
-	ss := supply.Supplier{
+	s := supply.Supplier{
 		Stager: stager,
 	}
 
-	err = supply.Run(&ss)
+	err = supply.Run(&s)
 	if err != nil {
 		os.Exit(14)
 	}

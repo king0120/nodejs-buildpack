@@ -32,7 +32,6 @@ var _ = Describe("Supply", func() {
 		mockManifest      *MockManifest
 		mockCommandRunner *MockCommandRunner
 		installNode       func(libbuildpack.Dependency, string)
-		installYarn       func(libbuildpack.Dependency, string)
 		installOnlyYarn   func(string, string)
 	)
 
@@ -69,17 +68,6 @@ var _ = Describe("Supply", func() {
 			Expect(err).To(BeNil())
 		}
 
-		installYarn = func(_ libbuildpack.Dependency, yarnDir string) {
-			err := os.MkdirAll(filepath.Join(yarnDir, "dist", "bin"), 0755)
-			Expect(err).To(BeNil())
-
-			err = ioutil.WriteFile(filepath.Join(yarnDir, "dist", "bin", "yarn"), []byte("yarn exe"), 0644)
-			Expect(err).To(BeNil())
-
-			err = ioutil.WriteFile(filepath.Join(yarnDir, "dist", "bin", "yarnpkg"), []byte("yarnpkg exe"), 0644)
-			Expect(err).To(BeNil())
-		}
-
 		installOnlyYarn = func(_ string, yarnDir string) {
 			err := os.MkdirAll(filepath.Join(yarnDir, "dist", "bin"), 0755)
 			Expect(err).To(BeNil())
@@ -112,6 +100,9 @@ var _ = Describe("Supply", func() {
 		mockCtrl.Finish()
 
 		err = os.RemoveAll(depsDir)
+		Expect(err).To(BeNil())
+
+		err = os.RemoveAll(buildDir)
 		Expect(err).To(BeNil())
 	})
 

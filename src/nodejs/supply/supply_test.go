@@ -457,7 +457,7 @@ var _ = Describe("Supply", func() {
 		)
 
 		BeforeEach(func() {
-			keys = []string{"NODE_ENV"}
+			keys = []string{"NODE_ENV", "NPM_CONFIG_PRODUCTION"}
 			envVars = make(map[string]string)
 
 			for _, key := range keys {
@@ -501,6 +501,29 @@ var _ = Describe("Supply", func() {
 				Expect(err).To(BeNil())
 
 				Expect(string(contents)).To(Equal("production"))
+			})
+		})
+
+		Context("NPM_CONFIG_PRODUCTION is set", func() {
+			BeforeEach(func() {
+				Expect(os.Setenv("NPM_CONFIG_PRODUCTION", "some value")).To(BeNil())
+			})
+
+			It("does not create an env file", func() {
+				Expect(supplier.CreateDefaultEnv()).To(BeNil())
+
+				Expect(filepath.Join(depsDir, depsIdx, "env", "NPM_CONFIG_PRODUCTION")).NotTo(BeAnExistingFile())
+			})
+		})
+
+		Context("NPM_CONFIG_PRODUCTION is not set", func() {
+			It("sets a default value", func() {
+				Expect(supplier.CreateDefaultEnv()).To(BeNil())
+
+				contents, err := ioutil.ReadFile(filepath.Join(depsDir, depsIdx, "env", "NPM_CONFIG_PRODUCTION"))
+				Expect(err).To(BeNil())
+
+				Expect(string(contents)).To(Equal("true"))
 			})
 		})
 

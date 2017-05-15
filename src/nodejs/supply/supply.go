@@ -193,15 +193,23 @@ func (s *Supplier) InstallYarn() error {
 }
 
 func (s *Supplier) CreateDefaultEnv() error {
-	s.Stager.Log.BeginStep("Creating runtime environment")
-	if err := s.Stager.WriteEnvFile("NODE_HOME", filepath.Join(s.Stager.DepDir(), "node")); err != nil {
-		return err
+	var environmentDefaults = map[string]string{
+		"NODE_ENV":              "production",
+		"NPM_CONFIG_PRODUCTION": "true",
 	}
 
-	if os.Getenv("NODE_ENV") == "" {
-		if err := s.Stager.WriteEnvFile("NODE_ENV", "production"); err != nil {
-			return err
+	s.Stager.Log.BeginStep("Creating runtime environment")
+
+	for envVar, envDefault := range environmentDefaults {
+		if os.Getenv(envVar) == "" {
+			if err := s.Stager.WriteEnvFile(envVar, envDefault); err != nil {
+				return err
+			}
 		}
+	}
+
+	if err := s.Stager.WriteEnvFile("NODE_HOME", filepath.Join(s.Stager.DepDir(), "node")); err != nil {
+		return err
 	}
 
 	scriptContents := `export NODE_HOME=%s

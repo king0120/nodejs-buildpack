@@ -450,9 +450,21 @@ var _ = Describe("Supply", func() {
 		})
 	})
 
-	Describe("ExportNodeHome", func() {
-		It("writes an env file for other buildpacks", func() {
-			err = supplier.ExportNodeHome()
+	Describe("CreateDefaultEnv", func() {
+		var (
+			oldNodeEnv string
+		)
+
+		BeforeEach(func() {
+			oldNodeEnv = os.Getenv("NODE_ENV")
+		})
+
+		AfterEach(func() {
+			Expect(os.Setenv("NODE_ENV", oldNodeEnv)).To(BeNil())
+		})
+
+		It("writes an env file for NODE_HOME", func() {
+			err = supplier.CreateDefaultEnv()
 			Expect(err).To(BeNil())
 
 			contents, err := ioutil.ReadFile(filepath.Join(depsDir, depsIdx, "env", "NODE_HOME"))
@@ -461,14 +473,38 @@ var _ = Describe("Supply", func() {
 			Expect(string(contents)).To(Equal(filepath.Join(depsDir, depsIdx, "node")))
 		})
 
+		Context("NODE_ENV is set", func() {
+			BeforeEach(func() {
+				Expect(os.Setenv("NODE_ENV", "anything")).To(BeNil())
+			})
+
+			It("does not create an env file", func() {
+				Expect(supplier.CreateDefaultEnv()).To(BeNil())
+
+				Expect(filepath.Join(depsDir, depsIdx, "env", "NODE_ENV")).NotTo(BeAnExistingFile())
+			})
+		})
+
+		Context("NODE_ENV is not set", func() {
+			It("sets a default value", func() {
+				Expect(supplier.CreateDefaultEnv()).To(BeNil())
+
+				contents, err := ioutil.ReadFile(filepath.Join(depsDir, depsIdx, "env", "NODE_ENV"))
+				Expect(err).To(BeNil())
+
+				Expect(string(contents)).To(Equal("production"))
+			})
+		})
+
 		It("writes profile.d script for runtime", func() {
-			err = supplier.ExportNodeHome()
+			err = supplier.CreateDefaultEnv()
 			Expect(err).To(BeNil())
 
 			contents, err := ioutil.ReadFile(filepath.Join(depsDir, depsIdx, "profile.d", "node.sh"))
 			Expect(err).To(BeNil())
 
-			Expect(string(contents)).To(Equal("export NODE_HOME=" + filepath.Join("$DEPS_DIR", depsIdx, "node")))
+			Expect(string(contents)).To(ContainSubstring("export NODE_HOME=" + filepath.Join("$DEPS_DIR", depsIdx, "node")))
+			Expect(string(contents)).To(ContainSubstring("export NODE_ENV=${NODE_ENV:-production}"))
 		})
 	})
 })

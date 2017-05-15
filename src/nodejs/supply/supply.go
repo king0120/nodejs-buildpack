@@ -54,8 +54,8 @@ func Run(s *Supplier) error {
 		return err
 	}
 
-	if err := s.ExportNodeHome(); err != nil {
-		s.Stager.Log.Error("Unable to setup NODE_HOME: %s", err.Error())
+	if err := s.CreateDefaultEnv(); err != nil {
+		s.Stager.Log.Error("Unable to setup default environment: %s", err.Error())
 		return err
 	}
 
@@ -192,10 +192,21 @@ func (s *Supplier) InstallYarn() error {
 	return nil
 }
 
-func (s *Supplier) ExportNodeHome() error {
+func (s *Supplier) CreateDefaultEnv() error {
+	s.Stager.Log.BeginStep("Creating runtime environment")
 	if err := s.Stager.WriteEnvFile("NODE_HOME", filepath.Join(s.Stager.DepDir(), "node")); err != nil {
 		return err
 	}
 
-	return s.Stager.WriteProfileD("node.sh", fmt.Sprintf("export NODE_HOME=%s", filepath.Join("$DEPS_DIR", s.Stager.DepsIdx, "node")))
+	if os.Getenv("NODE_ENV") == "" {
+		if err := s.Stager.WriteEnvFile("NODE_ENV", "production"); err != nil {
+			return err
+		}
+	}
+
+	scriptContents := `export NODE_HOME=%s
+export NODE_ENV=${NODE_ENV:-production}
+`
+
+	return s.Stager.WriteProfileD("node.sh", fmt.Sprintf(scriptContents, filepath.Join("$DEPS_DIR", s.Stager.DepsIdx, "node")))
 }

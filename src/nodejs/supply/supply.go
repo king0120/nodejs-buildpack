@@ -29,42 +29,42 @@ type engines struct {
 	Iojs string `json:"iojs"`
 }
 
-func Run(ss *Supplier) error {
-	ss.Stager.Log.BeginStep("Installing binaries")
-	if err := ss.LoadPackageJSON(); err != nil {
-		ss.Stager.Log.Error("Unable to load package.json: %s", err.Error())
+func Run(s *Supplier) error {
+	s.Stager.Log.BeginStep("Installing binaries")
+	if err := s.LoadPackageJSON(); err != nil {
+		s.Stager.Log.Error("Unable to load package.json: %s", err.Error())
 		return err
 	}
 
-	ss.WarnNodeEngine()
+	s.WarnNodeEngine()
 
-	if err := ss.InstallNode(); err != nil {
-		ss.Stager.Log.Error("Unable to install node: %s", err.Error())
+	if err := s.InstallNode(); err != nil {
+		s.Stager.Log.Error("Unable to install node: %s", err.Error())
 		return err
 	}
 
-	if err := ss.InstallNPM(); err != nil {
-		ss.Stager.Log.Error("Unable to install npm: %s", err.Error())
+	if err := s.InstallNPM(); err != nil {
+		s.Stager.Log.Error("Unable to install npm: %s", err.Error())
 		return err
 	}
 
-	if err := ss.InstallYarn(); err != nil {
-		ss.Stager.Log.Error("Unable to install yarn: %s", err.Error())
+	if err := s.InstallYarn(); err != nil {
+		s.Stager.Log.Error("Unable to install yarn: %s", err.Error())
 		return err
 	}
 
-	if err := ss.ExportNodeHome(); err != nil {
-		ss.Stager.Log.Error("Unable to setup NODE_HOME: %s", err.Error())
+	if err := s.ExportNodeHome(); err != nil {
+		s.Stager.Log.Error("Unable to setup NODE_HOME: %s", err.Error())
 		return err
 	}
 
 	return nil
 }
 
-func (ss *Supplier) LoadPackageJSON() error {
+func (s *Supplier) LoadPackageJSON() error {
 	var p packageJSON
 
-	err := libbuildpack.NewJSON().Load(filepath.Join(ss.Stager.BuildDir, "package.json"), &p)
+	err := libbuildpack.NewJSON().Load(filepath.Join(s.Stager.BuildDir, "package.json"), &p)
 	if err != nil {
 		return err
 	}
@@ -74,47 +74,47 @@ func (ss *Supplier) LoadPackageJSON() error {
 	}
 
 	if p.Engines.Node != "" {
-		ss.Stager.Log.Info("engines.node (package.json): %s", p.Engines.Node)
+		s.Stager.Log.Info("engines.node (package.json): %s", p.Engines.Node)
 	} else {
-		ss.Stager.Log.Info("engines.node (package.json): unspecified")
+		s.Stager.Log.Info("engines.node (package.json): unspecified")
 	}
 
 	if p.Engines.NPM != "" {
-		ss.Stager.Log.Info("engines.npm (package.json): %s", p.Engines.NPM)
+		s.Stager.Log.Info("engines.npm (package.json): %s", p.Engines.NPM)
 	} else {
-		ss.Stager.Log.Info("engines.npm (package.json): unspecified (use default)")
+		s.Stager.Log.Info("engines.npm (package.json): unspecified (use default)")
 	}
 
-	ss.Node = p.Engines.Node
-	ss.NPM = p.Engines.NPM
-	ss.Yarn = p.Engines.Yarn
+	s.Node = p.Engines.Node
+	s.NPM = p.Engines.NPM
+	s.Yarn = p.Engines.Yarn
 
 	return nil
 }
 
-func (ss *Supplier) WarnNodeEngine() {
+func (s *Supplier) WarnNodeEngine() {
 	docsLink := "http://docs.cloudfoundry.org/buildpacks/node/node-tips.html"
 
-	if ss.Node == "" {
-		ss.Stager.Log.Warning("Node version not specified in package.json. See: %s", docsLink)
+	if s.Node == "" {
+		s.Stager.Log.Warning("Node version not specified in package.json. See: %s", docsLink)
 	}
-	if ss.Node == "*" {
-		ss.Stager.Log.Warning("Dangerous semver range (*) in engines.node. See: %s", docsLink)
+	if s.Node == "*" {
+		s.Stager.Log.Warning("Dangerous semver range (*) in engines.node. See: %s", docsLink)
 	}
-	if strings.HasPrefix(ss.Node, ">") {
-		ss.Stager.Log.Warning("Dangerous semver range (>) in engines.node. See: %s", docsLink)
+	if strings.HasPrefix(s.Node, ">") {
+		s.Stager.Log.Warning("Dangerous semver range (>) in engines.node. See: %s", docsLink)
 	}
 	return
 }
 
-func (ss *Supplier) InstallNode() error {
+func (s *Supplier) InstallNode() error {
 	var dep libbuildpack.Dependency
 
-	nodeInstallDir := filepath.Join(ss.Stager.DepDir(), "node")
+	nodeInstallDir := filepath.Join(s.Stager.DepDir(), "node")
 
-	if ss.Node != "" {
-		versions := ss.Stager.Manifest.AllDependencyVersions("node")
-		ver, err := libbuildpack.FindMatchingVersion(ss.Node, versions)
+	if s.Node != "" {
+		versions := s.Stager.Manifest.AllDependencyVersions("node")
+		ver, err := libbuildpack.FindMatchingVersion(s.Node, versions)
 		if err != nil {
 			return err
 		}
@@ -123,78 +123,78 @@ func (ss *Supplier) InstallNode() error {
 	} else {
 		var err error
 
-		dep, err = ss.Stager.Manifest.DefaultVersion("node")
+		dep, err = s.Stager.Manifest.DefaultVersion("node")
 		if err != nil {
 			return err
 		}
 	}
 
-	if err := ss.Stager.Manifest.InstallDependency(dep, nodeInstallDir); err != nil {
+	if err := s.Stager.Manifest.InstallDependency(dep, nodeInstallDir); err != nil {
 		return err
 	}
-	return ss.Stager.LinkDirectoryInDepDir(filepath.Join(nodeInstallDir, "bin"), "bin")
+	return s.Stager.LinkDirectoryInDepDir(filepath.Join(nodeInstallDir, "bin"), "bin")
 }
 
-func (ss *Supplier) InstallNPM() error {
+func (s *Supplier) InstallNPM() error {
 	buffer := new(bytes.Buffer)
-	if err := ss.Stager.Command.Execute(ss.Stager.BuildDir, buffer, buffer, "npm", "--version"); err != nil {
+	if err := s.Stager.Command.Execute(s.Stager.BuildDir, buffer, buffer, "npm", "--version"); err != nil {
 		return err
 	}
 
 	npmVersion := strings.TrimSpace(buffer.String())
 
-	if ss.NPM == "" {
-		ss.Stager.Log.Info("Using default npm version: %s", npmVersion)
+	if s.NPM == "" {
+		s.Stager.Log.Info("Using default npm version: %s", npmVersion)
 		return nil
 	}
-	if ss.NPM == npmVersion {
-		ss.Stager.Log.Info("npm %s already installed with node", npmVersion)
+	if s.NPM == npmVersion {
+		s.Stager.Log.Info("npm %s already installed with node", npmVersion)
 		return nil
 	}
 
-	ss.Stager.Log.Info("Downloading and installing npm %s (replacing version %s)...", ss.NPM, npmVersion)
+	s.Stager.Log.Info("Downloading and installing npm %s (replacing version %s)...", s.NPM, npmVersion)
 
-	if err := ss.Stager.Command.Execute(ss.Stager.BuildDir, ioutil.Discard, ioutil.Discard, "npm", "install", "--unsafe-perm", "--quiet", "-g", "npm@"+ss.NPM); err != nil {
-		ss.Stager.Log.Error("We're unable to download the version of npm you've provided (%s).\nPlease remove the npm version specification in package.json", ss.NPM)
+	if err := s.Stager.Command.Execute(s.Stager.BuildDir, ioutil.Discard, ioutil.Discard, "npm", "install", "--unsafe-perm", "--quiet", "-g", "npm@"+s.NPM); err != nil {
+		s.Stager.Log.Error("We're unable to download the version of npm you've provided (%s).\nPlease remove the npm version specification in package.json", s.NPM)
 		return err
 	}
 	return nil
 }
 
-func (ss *Supplier) InstallYarn() error {
-	if ss.Yarn != "" {
-		versions := ss.Stager.Manifest.AllDependencyVersions("yarn")
-		_, err := libbuildpack.FindMatchingVersion(ss.Yarn, versions)
+func (s *Supplier) InstallYarn() error {
+	if s.Yarn != "" {
+		versions := s.Stager.Manifest.AllDependencyVersions("yarn")
+		_, err := libbuildpack.FindMatchingVersion(s.Yarn, versions)
 		if err != nil {
-			return fmt.Errorf("package.json requested %s, buildpack only includes yarn version %s", ss.Yarn, strings.Join(versions, ", "))
+			return fmt.Errorf("package.json requested %s, buildpack only includes yarn version %s", s.Yarn, strings.Join(versions, ", "))
 		}
 	}
 
-	yarnInstallDir := filepath.Join(ss.Stager.DepDir(), "yarn")
+	yarnInstallDir := filepath.Join(s.Stager.DepDir(), "yarn")
 
-	if err := ss.Stager.Manifest.InstallOnlyVersion("yarn", yarnInstallDir); err != nil {
+	if err := s.Stager.Manifest.InstallOnlyVersion("yarn", yarnInstallDir); err != nil {
 		return err
 	}
 
-	if err := ss.Stager.LinkDirectoryInDepDir(filepath.Join(yarnInstallDir, "dist", "bin"), "bin"); err != nil {
+	if err := s.Stager.LinkDirectoryInDepDir(filepath.Join(yarnInstallDir, "dist", "bin"), "bin"); err != nil {
 		return err
 	}
 
 	buffer := new(bytes.Buffer)
-	if err := ss.Stager.Command.Execute(ss.Stager.BuildDir, buffer, buffer, "yarn", "--version"); err != nil {
+	if err := s.Stager.Command.Execute(s.Stager.BuildDir, buffer, buffer, "yarn", "--version"); err != nil {
 		return err
 	}
 
 	yarnVersion := strings.TrimSpace(buffer.String())
-	ss.Stager.Log.Info("Installed yarn %s", yarnVersion)
+	s.Stager.Log.Info("Installed yarn %s", yarnVersion)
 
 	return nil
 }
 
-func (ss *Supplier) ExportNodeHome() error {
-	if err := ss.Stager.WriteEnvFile("NODE_HOME", filepath.Join(ss.Stager.DepDir(), "node")); err != nil {
+func (s *Supplier) ExportNodeHome() error {
+	if err := s.Stager.WriteEnvFile("NODE_HOME", filepath.Join(s.Stager.DepDir(), "node")); err != nil {
 		return err
 	}
 
-	return ss.Stager.WriteProfileD("node.sh", fmt.Sprintf("export NODE_HOME=%s", filepath.Join("$DEPS_DIR", ss.Stager.DepsIdx, "node")))
+	return s.Stager.WriteProfileD("node.sh", fmt.Sprintf("export NODE_HOME=%s", filepath.Join("$DEPS_DIR", s.Stager.DepsIdx, "node")))
 }

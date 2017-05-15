@@ -110,6 +110,8 @@ func (ss *Supplier) WarnNodeEngine() {
 func (ss *Supplier) InstallNode() error {
 	var dep libbuildpack.Dependency
 
+	nodeInstallDir := filepath.Join(ss.Stager.DepDir(), "node")
+
 	if ss.Node != "" {
 		versions := ss.Stager.Manifest.AllDependencyVersions("node")
 		ver, err := libbuildpack.FindMatchingVersion(ss.Node, versions)
@@ -127,10 +129,10 @@ func (ss *Supplier) InstallNode() error {
 		}
 	}
 
-	if err := ss.Stager.Manifest.InstallDependency(dep, filepath.Join(ss.Stager.DepDir(), "node")); err != nil {
+	if err := ss.Stager.Manifest.InstallDependency(dep, nodeInstallDir); err != nil {
 		return err
 	}
-	return ss.Stager.LinkDirectoryInDepDir(filepath.Join(ss.Stager.DepDir(), "node", "bin"), "bin")
+	return ss.Stager.LinkDirectoryInDepDir(filepath.Join(nodeInstallDir, "bin"), "bin")
 }
 
 func (ss *Supplier) InstallNPM() error {
@@ -164,7 +166,7 @@ func (ss *Supplier) InstallYarn() error {
 		versions := ss.Stager.Manifest.AllDependencyVersions("yarn")
 		_, err := libbuildpack.FindMatchingVersion(ss.Yarn, versions)
 		if err != nil {
-			ss.Stager.Log.Warning("package.json requested yarn version %s, but buildpack only includes yarn version %s", ss.Yarn, versions[0])
+			return fmt.Errorf("package.json requested %s, buildpack only includes yarn version %s", ss.Yarn, strings.Join(versions, ", "))
 		}
 	}
 

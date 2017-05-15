@@ -323,14 +323,17 @@ var _ = Describe("Supply", func() {
 
 		BeforeEach(func() {
 			yarnInstallDir = filepath.Join(depsDir, depsIdx, "yarn")
-			mockManifest.EXPECT().InstallOnlyVersion("yarn", yarnInstallDir).Do(installOnlyYarn).Return(nil)
-
-			mockCommandRunner.EXPECT().Execute(buildDir, gomock.Any(), gomock.Any(), "yarn", "--version").Do(func(_ string, buffer io.Writer, _ io.Writer, _ string, _ string) {
-				buffer.Write([]byte("0.32.5\n"))
-			}).Return(nil)
 		})
 
 		Context("yarn version is unset", func() {
+			BeforeEach(func() {
+				mockManifest.EXPECT().InstallOnlyVersion("yarn", yarnInstallDir).Do(installOnlyYarn).Return(nil)
+
+				mockCommandRunner.EXPECT().Execute(buildDir, gomock.Any(), gomock.Any(), "yarn", "--version").Do(func(_ string, buffer io.Writer, _ io.Writer, _ string, _ string) {
+					buffer.Write([]byte("0.32.5\n"))
+				}).Return(nil)
+			})
+
 			It("installs the only version in the manifest", func() {
 				supplier.Yarn = ""
 
@@ -358,6 +361,11 @@ var _ = Describe("Supply", func() {
 			BeforeEach(func() {
 				versions := []string{"0.32.5"}
 				mockManifest.EXPECT().AllDependencyVersions("yarn").Return(versions)
+				mockManifest.EXPECT().InstallOnlyVersion("yarn", yarnInstallDir).Do(installOnlyYarn).Return(nil)
+
+				mockCommandRunner.EXPECT().Execute(buildDir, gomock.Any(), gomock.Any(), "yarn", "--version").Do(func(_ string, buffer io.Writer, _ io.Writer, _ string, _ string) {
+					buffer.Write([]byte("0.32.5\n"))
+				}).Return(nil)
 			})
 
 			It("installs the correct version from the manifest", func() {
@@ -375,13 +383,11 @@ var _ = Describe("Supply", func() {
 				mockManifest.EXPECT().AllDependencyVersions("yarn").Return(versions)
 			})
 
-			It("installs the version from the manifest and warns the user", func() {
+			It("returns an error", func() {
 				supplier.Yarn = "1.0.x"
 				err = supplier.InstallYarn()
-				Expect(err).To(BeNil())
-
-				Expect(buffer.String()).To(ContainSubstring("**WARNING** package.json requested yarn version 1.0.x, but buildpack only includes yarn version 0.32.5"))
-				Expect(buffer.String()).To(ContainSubstring("Installed yarn 0.32.5"))
+				Expect(err).ToNot(BeNil())
+				Expect(err.Error()).To(Equal("package.json requested 1.0.x, buildpack only includes yarn version 0.32.5"))
 			})
 		})
 	})

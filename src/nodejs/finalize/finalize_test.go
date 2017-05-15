@@ -93,4 +93,22 @@ var _ = Describe("Finalize", func() {
 			})
 		})
 	})
+
+	Describe("WarnMissingPackageJSON", func() {
+		Context("package.json exists", func() {
+			BeforeEach(func() {
+				ioutil.WriteFile(filepath.Join(buildDir, "package.json"), []byte("{}"), 0644)
+			})
+			It("logs nothing", func() {
+				Expect(finalizer.WarnMissingPackageJSON()).To(BeNil())
+				Expect(buffer.String()).To(Equal(""))
+			})
+		})
+		Context("package.json exists", func() {
+			It("warns", func() {
+				Expect(finalizer.WarnMissingPackageJSON()).To(BeNil())
+				Expect(buffer.String()).To(ContainSubstring("**WARNING** No package.json found"))
+			})
+		})
+	})
 })

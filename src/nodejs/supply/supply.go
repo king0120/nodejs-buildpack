@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -65,7 +66,7 @@ func (s *Supplier) LoadPackageJSON() error {
 	var p packageJSON
 
 	err := libbuildpack.NewJSON().Load(filepath.Join(s.Stager.BuildDir, "package.json"), &p)
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
 

@@ -18,6 +18,11 @@ func Run(f *Finalizer) error {
 		return err
 	}
 
+	if err := f.WarnMissingPackageJSON(); err != nil {
+		f.Stager.Log.Error(err.Error())
+		return err
+	}
+
 	return nil
 }
 
@@ -31,6 +36,18 @@ func (f *Finalizer) TipVendorDependencies() error {
 			"http://docs.cloudfoundry.org/buildpacks/node/index.html#vendoring")
 	}
 
+	return nil
+}
+
+func (f *Finalizer) WarnMissingPackageJSON() error {
+	exists, err := libbuildpack.FileExists(filepath.Join(f.Stager.BuildDir, "package.json"))
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		f.Stager.Log.Warning("No package.json found")
+	}
 	return nil
 }
 

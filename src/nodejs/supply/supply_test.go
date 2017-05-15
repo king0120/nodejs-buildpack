@@ -110,7 +110,9 @@ var _ = Describe("Supply", func() {
 		var packageJSON string
 
 		JustBeforeEach(func() {
-			ioutil.WriteFile(filepath.Join(buildDir, "package.json"), []byte(packageJSON), 0644)
+			if packageJSON != "" {
+				ioutil.WriteFile(filepath.Join(buildDir, "package.json"), []byte(packageJSON), 0644)
+			}
 		})
 
 		Context("File is invalid JSON", func() {
@@ -198,6 +200,29 @@ var _ = Describe("Supply", func() {
   }
 }
 `
+				})
+
+				It("loads the engine struct with empty strings", func() {
+					err = supplier.LoadPackageJSON()
+					Expect(err).To(BeNil())
+
+					Expect(supplier.Node).To(Equal(""))
+					Expect(supplier.Yarn).To(Equal(""))
+					Expect(supplier.NPM).To(Equal(""))
+				})
+
+				It("logs that node and npm are not set", func() {
+					err = supplier.LoadPackageJSON()
+					Expect(err).To(BeNil())
+
+					Expect(buffer.String()).To(ContainSubstring("engines.node (package.json): unspecified"))
+					Expect(buffer.String()).To(ContainSubstring("engines.npm (package.json): unspecified (use default)"))
+				})
+			})
+
+			Context("package.json does not exist", func() {
+				BeforeEach(func() {
+					packageJSON = ""
 				})
 
 				It("loads the engine struct with empty strings", func() {

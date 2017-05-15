@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"nodejs/finalize"
 	"os"
+	"path/filepath"
 
 	"github.com/cloudfoundry/libbuildpack"
 	"github.com/cloudfoundry/libbuildpack/ansicleaner"
@@ -57,5 +58,39 @@ var _ = Describe("Finalize", func() {
 
 		err = os.RemoveAll(buildDir)
 		Expect(err).To(BeNil())
+	})
+
+	Describe("TipVendorDependencies", func() {
+		Context("node_modules exists and has subdirectories", func() {
+			BeforeEach(func() {
+				Expect(os.MkdirAll(filepath.Join(buildDir, "node_modules", "exciting_module"), 0755)).To(BeNil())
+			})
+
+			It("does not log anything", func() {
+				Expect(finalizer.TipVendorDependencies()).To(BeNil())
+				Expect(buffer.String()).To(Equal(""))
+			})
+		})
+
+		Context("node_modules exists and has NO subdirectories", func() {
+			BeforeEach(func() {
+				Expect(os.MkdirAll(filepath.Join(buildDir, "node_modules"), 0755)).To(BeNil())
+				Expect(ioutil.WriteFile(filepath.Join(buildDir, "node_modules", "a_file"), []byte("content"), 0644)).To(BeNil())
+			})
+
+			It("logs a pro tip", func() {
+				Expect(finalizer.TipVendorDependencies()).To(BeNil())
+				Expect(buffer.String()).To(ContainSubstring("PRO TIP: It is recommended to vendor the application's Node.js dependencies"))
+				Expect(buffer.String()).To(ContainSubstring("http://docs.cloudfoundry.org/buildpacks/node/index.html#vendoring"))
+			})
+		})
+
+		Context("node_modules does not exist", func() {
+			It("logs a pro tip", func() {
+				Expect(finalizer.TipVendorDependencies()).To(BeNil())
+				Expect(buffer.String()).To(ContainSubstring("PRO TIP: It is recommended to vendor the application's Node.js dependencies"))
+				Expect(buffer.String()).To(ContainSubstring("http://docs.cloudfoundry.org/buildpacks/node/index.html#vendoring"))
+			})
+		})
 	})
 })

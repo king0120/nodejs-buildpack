@@ -452,15 +452,23 @@ var _ = Describe("Supply", func() {
 
 	Describe("CreateDefaultEnv", func() {
 		var (
-			oldNodeEnv string
+			envVars map[string]string
+			keys    []string
 		)
 
 		BeforeEach(func() {
-			oldNodeEnv = os.Getenv("NODE_ENV")
+			keys = []string{"NODE_ENV"}
+			envVars = make(map[string]string)
+
+			for _, key := range keys {
+				envVars[key] = os.Getenv(key)
+			}
 		})
 
 		AfterEach(func() {
-			Expect(os.Setenv("NODE_ENV", oldNodeEnv)).To(BeNil())
+			for _, key := range keys {
+				Expect(os.Setenv(key, envVars[key])).To(BeNil())
+			}
 		})
 
 		It("writes an env file for NODE_HOME", func() {

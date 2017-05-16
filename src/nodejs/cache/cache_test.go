@@ -336,4 +336,36 @@ var _ = Describe("Cache", func() {
 			})
 		})
 	})
+
+	Describe("Save", func() {
+		BeforeEach(func() {
+			Expect(os.MkdirAll(filepath.Join(cacheDir, "node"), 0755)).To(Succeed())
+			Expect(ioutil.WriteFile(filepath.Join(cacheDir, "node", "old_cache"), []byte("old"), 0644)).To(Succeed())
+
+			Expect(os.MkdirAll(filepath.Join(buildDir, ".npm"), 0755)).To(Succeed())
+			Expect(ioutil.WriteFile(filepath.Join(buildDir, ".npm", "build1"), []byte("build1"), 0644)).To(Succeed())
+
+			Expect(os.MkdirAll(filepath.Join(buildDir, ".yarn", "cache"), 0755)).To(Succeed())
+			Expect(ioutil.WriteFile(filepath.Join(buildDir, ".yarn", "cache", "build2"), []byte("build2"), 0644)).To(Succeed())
+			Expect(ioutil.WriteFile(filepath.Join(buildDir, ".yarn", "build3"), []byte("build3"), 0644)).To(Succeed())
+		})
+
+		It("clears the previous cache", func() {
+			Expect(cacher.Save()).To(Succeed())
+			Expect(filepath.Join(cacheDir, "node", "old_cache")).NotTo(BeAnExistingFile())
+			Expect(buffer.String()).To(ContainSubstring("Clearing previous node cache"))
+		})
+
+		It("saves the signature to the cache", func() {
+			Expect(cacher.Save()).To(Succeed())
+			Expect(ioutil.ReadFile(filepath.Join(cacheDir, "node", "signature"))).To(Equal([]byte("1.1.1; 2.2.2; 3.3.3\n")))
+		})
+
+		It("removes .npm and .yarn/cache from the build dir", func() {
+			Expect(cacher.Save()).To(Succeed())
+			Expect(filepath.Join(buildDir, ".npm")).NotTo(BeAnExistingFile())
+			Expect(filepath.Join(buildDir, ".yarn", "cache")).NotTo(BeAnExistingFile())
+			Expect(ioutil.ReadFile(filepath.Join(buildDir, "yarn", "build3"))).To(Equal([]byte("build3")))
+		})
+	})
 })

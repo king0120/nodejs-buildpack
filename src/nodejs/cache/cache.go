@@ -45,10 +45,6 @@ func New(stager *libbuildpack.Stager) (*Cache, error) {
 	return c, nil
 }
 
-func (c *Cache) Save() error {
-	return nil
-}
-
 func (c *Cache) Restore() error {
 	c.Stager.Log.BeginStep("Restoring cache")
 
@@ -78,6 +74,32 @@ func (c *Cache) Restore() error {
 	}
 
 	return c.restoreCacheDirs(dirsToRestore)
+}
+
+func (c *Cache) Save() error {
+	c.Stager.Log.BeginStep("Caching build")
+	c.Stager.Log.Info("Clearing previous node cache")
+
+	if err := c.Stager.ClearCache(); err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(filepath.Join(c.Stager.CacheDir, "node"), 0755); err != nil {
+		return err
+	}
+
+	if err := ioutil.WriteFile(filepath.Join(c.Stager.CacheDir, "node", "signature"), []byte(c.signature()+"\n"), 0644); err != nil {
+		return err
+	}
+
+	dirsToRemove := []string{".npm", ".yarn/cache"}
+	for _, dir := range dirsToRemove {
+		if err := os.RemoveAll(filepath.Join(c.Stager.BuildDir, dir)); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (c *Cache) selectCacheDirs() ([]string, error) {

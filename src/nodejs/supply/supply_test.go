@@ -452,26 +452,6 @@ var _ = Describe("Supply", func() {
 	})
 
 	Describe("CreateDefaultEnv", func() {
-		var (
-			envVars map[string]string
-			keys    []string
-		)
-
-		BeforeEach(func() {
-			keys = []string{"NODE_ENV", "NPM_CONFIG_PRODUCTION", "NPM_CONFIG_LOGLEVEL", "NODE_MODULES_CACHE", "NODE_VERBOSE"}
-			envVars = make(map[string]string)
-
-			for _, key := range keys {
-				envVars[key] = os.Getenv(key)
-			}
-		})
-
-		AfterEach(func() {
-			for _, key := range keys {
-				Expect(os.Setenv(key, envVars[key])).To(BeNil())
-			}
-		})
-
 		It("writes an env file for NODE_HOME", func() {
 			err = supplier.CreateDefaultEnv()
 			Expect(err).To(BeNil())
@@ -484,6 +464,9 @@ var _ = Describe("Supply", func() {
 
 		DescribeTable("environment with default has a value",
 			func(key string, value string) {
+				oldValue := os.Getenv(key)
+				defer os.Setenv(key, oldValue)
+
 				Expect(os.Setenv(key, value)).To(BeNil())
 				Expect(supplier.CreateDefaultEnv()).To(BeNil())
 				Expect(filepath.Join(depsDir, depsIdx, "env", key)).NotTo(BeAnExistingFile())
@@ -497,6 +480,10 @@ var _ = Describe("Supply", func() {
 
 		DescribeTable("environment with default was not set",
 			func(key string, expected string) {
+				oldValue := os.Getenv(key)
+				defer os.Setenv(key, oldValue)
+				Expect(os.Unsetenv(key)).To(BeNil())
+
 				Expect(supplier.CreateDefaultEnv()).To(BeNil())
 				contents, err := ioutil.ReadFile(filepath.Join(depsDir, depsIdx, "env", key))
 				Expect(err).To(BeNil())

@@ -196,6 +196,9 @@ func (s *Supplier) CreateDefaultEnv() error {
 	var environmentDefaults = map[string]string{
 		"NODE_ENV":              "production",
 		"NPM_CONFIG_PRODUCTION": "true",
+		"NPM_CONFIG_LOGLEVEL":   "error",
+		"NODE_MODULES_CACHE":    "true",
+		"NODE_VERBOSE":          "false",
 	}
 
 	s.Stager.Log.BeginStep("Creating runtime environment")

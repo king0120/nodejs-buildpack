@@ -12,6 +12,7 @@ import (
 	"github.com/cloudfoundry/libbuildpack/ansicleaner"
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 )
 
@@ -457,7 +458,7 @@ var _ = Describe("Supply", func() {
 		)
 
 		BeforeEach(func() {
-			keys = []string{"NODE_ENV", "NPM_CONFIG_PRODUCTION"}
+			keys = []string{"NODE_ENV", "NPM_CONFIG_PRODUCTION", "NPM_CONFIG_LOGLEVEL", "NODE_MODULES_CACHE", "NODE_VERBOSE"}
 			envVars = make(map[string]string)
 
 			for _, key := range keys {
@@ -481,51 +482,33 @@ var _ = Describe("Supply", func() {
 			Expect(string(contents)).To(Equal(filepath.Join(depsDir, depsIdx, "node")))
 		})
 
-		Context("NODE_ENV is set", func() {
-			BeforeEach(func() {
-				Expect(os.Setenv("NODE_ENV", "anything")).To(BeNil())
-			})
-
-			It("does not create an env file", func() {
+		DescribeTable("environment with default has a value",
+			func(key string, value string) {
+				Expect(os.Setenv(key, value)).To(BeNil())
 				Expect(supplier.CreateDefaultEnv()).To(BeNil())
+				Expect(filepath.Join(depsDir, depsIdx, "env", key)).NotTo(BeAnExistingFile())
+			},
+			Entry("NODE_ENV", "NODE_ENV", "anything"),
+			Entry("NPM_CONFIG_PRODUCTION", "NPM_CONFIG_PRODUCTION", "some value"),
+			Entry("NPM_CONFIG_LOGLEVEL", "NPM_CONFIG_LOGLEVEL", "everything"),
+			Entry("NODE_MODULES_CACHE", "NODE_MODULES_CACHE", "false"),
+			Entry("NODE_VERBOSE", "NODE_VERBOSE", "many words"),
+		)
 
-				Expect(filepath.Join(depsDir, depsIdx, "env", "NODE_ENV")).NotTo(BeAnExistingFile())
-			})
-		})
-
-		Context("NODE_ENV is not set", func() {
-			It("sets a default value", func() {
+		DescribeTable("environment with default was not set",
+			func(key string, expected string) {
 				Expect(supplier.CreateDefaultEnv()).To(BeNil())
-
-				contents, err := ioutil.ReadFile(filepath.Join(depsDir, depsIdx, "env", "NODE_ENV"))
+				contents, err := ioutil.ReadFile(filepath.Join(depsDir, depsIdx, "env", key))
 				Expect(err).To(BeNil())
 
-				Expect(string(contents)).To(Equal("production"))
-			})
-		})
-
-		Context("NPM_CONFIG_PRODUCTION is set", func() {
-			BeforeEach(func() {
-				Expect(os.Setenv("NPM_CONFIG_PRODUCTION", "some value")).To(BeNil())
-			})
-
-			It("does not create an env file", func() {
-				Expect(supplier.CreateDefaultEnv()).To(BeNil())
-
-				Expect(filepath.Join(depsDir, depsIdx, "env", "NPM_CONFIG_PRODUCTION")).NotTo(BeAnExistingFile())
-			})
-		})
-
-		Context("NPM_CONFIG_PRODUCTION is not set", func() {
-			It("sets a default value", func() {
-				Expect(supplier.CreateDefaultEnv()).To(BeNil())
-
-				contents, err := ioutil.ReadFile(filepath.Join(depsDir, depsIdx, "env", "NPM_CONFIG_PRODUCTION"))
-				Expect(err).To(BeNil())
-
-				Expect(string(contents)).To(Equal("true"))
-			})
-		})
+				Expect(string(contents)).To(Equal(expected))
+			},
+			Entry("NODE_ENV", "NODE_ENV", "production"),
+			Entry("NPM_CONFIG_PRODUCTION", "NPM_CONFIG_PRODUCTION", "true"),
+			Entry("NPM_CONFIG_LOGLEVEL", "NPM_CONFIG_LOGLEVEL", "error"),
+			Entry("NODE_MODULES_CACHE", "NODE_MODULES_CACHE", "true"),
+			Entry("NODE_VERBOSE", "NODE_VERBOSE", "false"),
+		)
 
 		It("writes profile.d script for runtime", func() {
 			err = supplier.CreateDefaultEnv()

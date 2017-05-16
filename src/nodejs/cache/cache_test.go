@@ -120,6 +120,26 @@ var _ = Describe("Cache", func() {
 
 				Expect(os.MkdirAll(filepath.Join(cacheDir, "node", "other_dir"), 0755)).To(Succeed())
 				Expect(ioutil.WriteFile(filepath.Join(cacheDir, "node", "other_dir", "cached"), []byte("aaa"), 0644)).To(Succeed())
+
+				packageJSON := `
+{
+  "name": "node",
+  "version": "1.0.0",
+  "main": "server.js",
+  "author": "CF Buildpacks Team",
+  "dependencies": {
+    "logfmt": "~1.1.2",
+    "express": "~4.0.0"
+  },
+  "engines" : {
+		"yarn" : "*",
+		"npm"  : "npm-x",
+		"node" : "node-y",
+		"something" : "3.2.1"
+	}
+}
+`
+				Expect(ioutil.WriteFile(filepath.Join(buildDir, "package.json"), []byte(packageJSON), 0644)).To(Succeed())
 			})
 
 			Context("signature changed", func() {
@@ -137,7 +157,7 @@ var _ = Describe("Cache", func() {
 					Expect(cacher.Restore()).To(Succeed())
 					files, err := ioutil.ReadDir(filepath.Join(buildDir))
 					Expect(err).To(BeNil())
-					Expect(len(files)).To(Equal(0))
+					Expect(len(files)).To(Equal(1))
 				})
 			})
 
@@ -161,10 +181,86 @@ var _ = Describe("Cache", func() {
 						files, err := ioutil.ReadDir(filepath.Join(buildDir))
 						Expect(err).To(BeNil())
 
-						Expect(len(files)).To(Equal(3))
+						Expect(len(files)).To(Equal(4))
 						Expect(ioutil.ReadFile(filepath.Join(buildDir, ".npm", "cached"))).To(Equal([]byte("xxx")))
 						Expect(ioutil.ReadFile(filepath.Join(buildDir, ".yarn", "cache", "cached"))).To(Equal([]byte("yyy")))
 						Expect(ioutil.ReadFile(filepath.Join(buildDir, "bower_components", "cached"))).To(Equal([]byte("zzz")))
+					})
+				})
+
+				Context("package.json has 'cacheDirectories'", func() {
+					BeforeEach(func() {
+						Expect(os.MkdirAll(filepath.Join(cacheDir, "node", "first"), 0755)).To(Succeed())
+						Expect(ioutil.WriteFile(filepath.Join(cacheDir, "node", "first", "cached"), []byte("thing 1"), 0644)).To(Succeed())
+
+						Expect(os.MkdirAll(filepath.Join(cacheDir, "node", "second"), 0755)).To(Succeed())
+						Expect(ioutil.WriteFile(filepath.Join(cacheDir, "node", "second", "cached"), []byte("thing 2"), 0644)).To(Succeed())
+
+						packageJSON := `
+{
+  "cacheDirectories" : [
+		"first",
+		"second"
+	]
+}
+`
+						Expect(ioutil.WriteFile(filepath.Join(buildDir, "package.json"), []byte(packageJSON), 0644)).To(Succeed())
+					})
+
+					It("alerts user", func() {
+						Expect(cacher.Restore()).To(Succeed())
+
+						Expect(buffer.String()).To(ContainSubstring("Loading 2 from cacheDirectories (package.json):"))
+						Expect(buffer.String()).To(ContainSubstring("- first\n"))
+						Expect(buffer.String()).To(ContainSubstring("- second\n"))
+					})
+
+					It("moves the requested cached directories", func() {
+						Expect(cacher.Restore()).To(Succeed())
+						files, err := ioutil.ReadDir(filepath.Join(buildDir))
+						Expect(err).To(BeNil())
+
+						Expect(len(files)).To(Equal(3))
+						Expect(ioutil.ReadFile(filepath.Join(buildDir, "first", "cached"))).To(Equal([]byte("thing 1")))
+						Expect(ioutil.ReadFile(filepath.Join(buildDir, "second", "cached"))).To(Equal([]byte("thing 2")))
+					})
+				})
+
+				Context("package.json has 'cache_directories'", func() {
+					BeforeEach(func() {
+						Expect(os.MkdirAll(filepath.Join(cacheDir, "node", "third"), 0755)).To(Succeed())
+						Expect(ioutil.WriteFile(filepath.Join(cacheDir, "node", "third", "cached"), []byte("thing 3"), 0644)).To(Succeed())
+
+						Expect(os.MkdirAll(filepath.Join(cacheDir, "node", "fourth"), 0755)).To(Succeed())
+						Expect(ioutil.WriteFile(filepath.Join(cacheDir, "node", "fourth", "cached"), []byte("high level"), 0644)).To(Succeed())
+
+						packageJSON := `
+{
+  "cache_directories" : [
+		"third",
+		"fourth"
+	]
+}
+`
+						Expect(ioutil.WriteFile(filepath.Join(buildDir, "package.json"), []byte(packageJSON), 0644)).To(Succeed())
+					})
+
+					It("alerts user", func() {
+						Expect(cacher.Restore()).To(Succeed())
+
+						Expect(buffer.String()).To(ContainSubstring("Loading 2 from cacheDirectories (package.json):"))
+						Expect(buffer.String()).To(ContainSubstring("- third\n"))
+						Expect(buffer.String()).To(ContainSubstring("- fourth\n"))
+					})
+
+					It("moves the requested cached directories", func() {
+						Expect(cacher.Restore()).To(Succeed())
+						files, err := ioutil.ReadDir(filepath.Join(buildDir))
+						Expect(err).To(BeNil())
+
+						Expect(len(files)).To(Equal(3))
+						Expect(ioutil.ReadFile(filepath.Join(buildDir, "third", "cached"))).To(Equal([]byte("thing 3")))
+						Expect(ioutil.ReadFile(filepath.Join(buildDir, "fourth", "cached"))).To(Equal([]byte("high level")))
 					})
 				})
 
@@ -188,7 +284,7 @@ var _ = Describe("Cache", func() {
 						files, err := ioutil.ReadDir(filepath.Join(buildDir))
 						Expect(err).To(BeNil())
 
-						Expect(len(files)).To(Equal(3))
+						Expect(len(files)).To(Equal(4))
 						Expect(ioutil.ReadFile(filepath.Join(buildDir, ".npm", "cached"))).To(Equal([]byte("from app")))
 						Expect(ioutil.ReadFile(filepath.Join(buildDir, ".yarn", "cache", "cached"))).To(Equal([]byte("yyy")))
 						Expect(ioutil.ReadFile(filepath.Join(buildDir, "bower_components", "cached"))).To(Equal([]byte("zzz")))
@@ -214,7 +310,7 @@ var _ = Describe("Cache", func() {
 						files, err := ioutil.ReadDir(filepath.Join(buildDir))
 						Expect(err).To(BeNil())
 
-						Expect(len(files)).To(Equal(2))
+						Expect(len(files)).To(Equal(3))
 						Expect(ioutil.ReadFile(filepath.Join(buildDir, ".yarn", "cache", "cached"))).To(Equal([]byte("yyy")))
 						Expect(ioutil.ReadFile(filepath.Join(buildDir, "bower_components", "cached"))).To(Equal([]byte("zzz")))
 					})
@@ -242,7 +338,7 @@ var _ = Describe("Cache", func() {
 						Expect(cacher.Restore()).To(Succeed())
 						files, err := ioutil.ReadDir(filepath.Join(buildDir))
 						Expect(err).To(BeNil())
-						Expect(len(files)).To(Equal(0))
+						Expect(len(files)).To(Equal(1))
 					})
 				})
 			})

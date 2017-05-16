@@ -65,11 +65,39 @@ func (c *Cache) Restore() error {
 		return nil
 	}
 
-	c.Stager.Log.Info("Loading 3 from cacheDirectories (default):")
-
-	dirsToRestore := []string{".npm", ".yarn/cache", "bower_components"}
+	dirsToRestore, err := c.selectCacheDirs()
+	if err != nil {
+		return err
+	}
 
 	return c.restoreCacheDirs(dirsToRestore)
+}
+
+func (c *Cache) selectCacheDirs() ([]string, error) {
+	dirs := []string{".npm", ".yarn/cache", "bower_components"}
+
+	var p struct {
+		Dirs1 []string `json:"cacheDirectories"`
+		Dirs2 []string `json:"cache_directories"`
+	}
+
+	if err := libbuildpack.NewJSON().Load(filepath.Join(c.Stager.BuildDir, "package.json"), &p); err != nil {
+		if !os.IsNotExist(err) {
+			return nil, err
+		}
+	}
+
+	if len(p.Dirs1) > 0 {
+		dirs = p.Dirs1
+		c.Stager.Log.Info("Loading %d from cacheDirectories (package.json):", len(dirs))
+	} else if len(p.Dirs2) > 0 {
+		dirs = p.Dirs2
+		c.Stager.Log.Info("Loading %d from cacheDirectories (package.json):", len(dirs))
+	} else {
+		c.Stager.Log.Info("Loading 3 from cacheDirectories (default):")
+	}
+
+	return dirs, nil
 }
 
 func (c *Cache) restoreCacheDirs(dirsToRestore []string) error {

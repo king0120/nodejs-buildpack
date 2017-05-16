@@ -11,18 +11,10 @@ import (
 )
 
 type Finalizer struct {
-	Stager      *libbuildpack.Stager
-	NodeVersion string
-	NPMVersion  string
-	YarnVersion string
+	Stager *libbuildpack.Stager
 }
 
 func Run(f *Finalizer) error {
-	if err := f.Init(); err != nil {
-		f.Stager.Log.Error("unable to find binaries: %s", err.Error())
-		return err
-	}
-
 	if err := f.TipVendorDependencies(); err != nil {
 		f.Stager.Log.Error(err.Error())
 		return err
@@ -34,23 +26,6 @@ func Run(f *Finalizer) error {
 	}
 
 	f.ListNodeConfig(os.Environ())
-
-	return nil
-}
-
-func (f *Finalizer) Init() error {
-	var err error
-	if f.NodeVersion, err = f.findVersion("node"); err != nil {
-		return err
-	}
-
-	if f.NPMVersion, err = f.findVersion("npm"); err != nil {
-		return err
-	}
-
-	if f.YarnVersion, err = f.findVersion("yarn"); err != nil {
-		return err
-	}
 
 	return nil
 }

@@ -3,7 +3,6 @@ package finalize_test
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"nodejs/finalize"
 	"os"
@@ -61,37 +60,6 @@ var _ = Describe("Finalize", func() {
 
 		err = os.RemoveAll(buildDir)
 		Expect(err).To(BeNil())
-	})
-
-	Describe("Init", func() {
-		BeforeEach(func() {
-			mockCommandRunner.EXPECT().Execute("", gomock.Any(), gomock.Any(), "node", "--version").Do(func(_ string, buffer io.Writer, _ io.Writer, _ string, _ string) {
-				buffer.Write([]byte("6.9.3\n"))
-			}).Return(nil)
-
-			mockCommandRunner.EXPECT().Execute("", gomock.Any(), gomock.Any(), "npm", "--version").Do(func(_ string, buffer io.Writer, _ io.Writer, _ string, _ string) {
-				buffer.Write([]byte("4.5.6\n"))
-			}).Return(nil)
-
-			mockCommandRunner.EXPECT().Execute("", gomock.Any(), gomock.Any(), "yarn", "--version").Do(func(_ string, buffer io.Writer, _ io.Writer, _ string, _ string) {
-				buffer.Write([]byte("9.8.7\n"))
-			}).Return(nil)
-		})
-
-		It("sets node version", func() {
-			finalizer.Init()
-			Expect(finalizer.NodeVersion).To(Equal("6.9.3"))
-		})
-
-		It("sets npm version", func() {
-			finalizer.Init()
-			Expect(finalizer.NPMVersion).To(Equal("4.5.6"))
-		})
-
-		It("sets yarn version", func() {
-			finalizer.Init()
-			Expect(finalizer.YarnVersion).To(Equal("9.8.7"))
-		})
 	})
 
 	Describe("TipVendorDependencies", func() {

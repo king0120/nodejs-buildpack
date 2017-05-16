@@ -13,11 +13,14 @@ import (
 )
 
 type Cache struct {
-	Stager      *libbuildpack.Stager
-	NodeVersion string
-	NPMVersion  string
-	YarnVersion string
+	Stager               *libbuildpack.Stager
+	NodeVersion          string
+	NPMVersion           string
+	YarnVersion          string
+	PackageJSONCacheDirs []string
 }
+
+var defaultCacheDirs = []string{".npm", ".yarn/cache", "bower_components"}
 
 func New(stager *libbuildpack.Stager) (*Cache, error) {
 	var err error
@@ -32,6 +35,10 @@ func New(stager *libbuildpack.Stager) (*Cache, error) {
 	}
 
 	if c.YarnVersion, err = c.findVersion("yarn"); err != nil {
+		return nil, err
+	}
+
+	if c.PackageJSONCacheDirs, err = findPkgCacheDirs(c.Stager.BuildDir); err != nil {
 		return nil, err
 	}
 
@@ -74,30 +81,13 @@ func (c *Cache) Restore() error {
 }
 
 func (c *Cache) selectCacheDirs() ([]string, error) {
-	dirs := []string{".npm", ".yarn/cache", "bower_components"}
-
-	var p struct {
-		Dirs1 []string `json:"cacheDirectories"`
-		Dirs2 []string `json:"cache_directories"`
+	if len(c.PackageJSONCacheDirs) > 0 {
+		c.Stager.Log.Info("Loading %d from cacheDirectories (package.json):", len(c.PackageJSONCacheDirs))
+		return c.PackageJSONCacheDirs, nil
 	}
 
-	if err := libbuildpack.NewJSON().Load(filepath.Join(c.Stager.BuildDir, "package.json"), &p); err != nil {
-		if !os.IsNotExist(err) {
-			return nil, err
-		}
-	}
-
-	if len(p.Dirs1) > 0 {
-		dirs = p.Dirs1
-		c.Stager.Log.Info("Loading %d from cacheDirectories (package.json):", len(dirs))
-	} else if len(p.Dirs2) > 0 {
-		dirs = p.Dirs2
-		c.Stager.Log.Info("Loading %d from cacheDirectories (package.json):", len(dirs))
-	} else {
-		c.Stager.Log.Info("Loading 3 from cacheDirectories (default):")
-	}
-
-	return dirs, nil
+	c.Stager.Log.Info("Loading 3 from cacheDirectories (default):")
+	return defaultCacheDirs, nil
 }
 
 func (c *Cache) restoreCacheDirs(dirsToRestore []string) error {
@@ -149,4 +139,25 @@ func (c *Cache) findVersion(binary string) (string, error) {
 
 func (c *Cache) signature() string {
 	return fmt.Sprintf("%s; %s; %s", c.NodeVersion, c.NPMVersion, c.YarnVersion)
+}
+
+func findPkgCacheDirs(buildDir string) ([]string, error) {
+	var p struct {
+		Dirs1 []string `json:"cacheDirectories"`
+		Dirs2 []string `json:"cache_directories"`
+	}
+
+	if err := libbuildpack.NewJSON().Load(filepath.Join(buildDir, "package.json"), &p); err != nil {
+		if !os.IsNotExist(err) {
+			return nil, err
+		}
+	}
+
+	if len(p.Dirs1) > 0 {
+		return p.Dirs1, nil
+	} else if len(p.Dirs2) > 0 {
+		return p.Dirs2, nil
+	}
+
+	return []string{}, nil
 }

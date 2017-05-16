@@ -219,6 +219,32 @@ var _ = Describe("Cache", func() {
 						Expect(ioutil.ReadFile(filepath.Join(buildDir, "bower_components", "cached"))).To(Equal([]byte("zzz")))
 					})
 				})
+
+				Context("NODE_MODULES_CACHE is set", func() {
+					var oldNodeModulesCache string
+
+					BeforeEach(func() {
+						oldNodeModulesCache = os.Getenv("NODE_MODULES_CACHE")
+						Expect(os.Setenv("NODE_MODULES_CACHE", "true")).To(Succeed())
+					})
+
+					AfterEach(func() {
+						Expect(os.Setenv("NODE_MODULES_CACHE", oldNodeModulesCache)).To(Succeed())
+					})
+
+					It("alerts user", func() {
+						Expect(cacher.Restore()).To(Succeed())
+
+						Expect(buffer.String()).To(ContainSubstring("Skipping cache restore (disabled by config)"))
+					})
+
+					It("does not restore the cache", func() {
+						Expect(cacher.Restore()).To(Succeed())
+						files, err := ioutil.ReadDir(filepath.Join(buildDir))
+						Expect(err).To(BeNil())
+						Expect(len(files)).To(Equal(0))
+					})
+				})
 			})
 		})
 

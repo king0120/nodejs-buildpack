@@ -60,6 +60,11 @@ func (c *Cache) Restore() error {
 		return nil
 	}
 
+	if os.Getenv("NODE_MODULES_CACHE") != "" {
+		c.Stager.Log.Info("Skipping cache restore (disabled by config)")
+		return nil
+	}
+
 	c.Stager.Log.Info("Loading 3 from cacheDirectories (default):")
 
 	dirsToRestore := []string{".npm", ".yarn/cache", "bower_components"}

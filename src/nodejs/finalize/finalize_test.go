@@ -2,6 +2,7 @@ package finalize_test
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"nodejs/finalize"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"github.com/cloudfoundry/libbuildpack/ansicleaner"
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 )
 
@@ -110,5 +112,19 @@ var _ = Describe("Finalize", func() {
 				Expect(buffer.String()).To(ContainSubstring("**WARNING** No package.json found"))
 			})
 		})
+	})
+
+	Describe("ListNodeConfig", func() {
+		DescribeTable("outputs relevant env vars",
+			func(key string, value string, expected string) {
+				finalizer.ListNodeConfig([]string{fmt.Sprintf("%s=%s", key, value)})
+				Expect(buffer.String()).To(Equal(expected))
+			},
+
+			Entry("NPM_CONFIG_", "NPM_CONFIG_THING", "someval", "       NPM_CONFIG_THING=someval\n"),
+			Entry("YARN_", "YARN_KEY", "aval", "       YARN_KEY=aval\n"),
+			Entry("NODE_", "NODE_EXCITING", "newval", "       NODE_EXCITING=newval\n"),
+			Entry("NOT_RELEVANT", "NOT_RELEVANT", "anything", ""),
+		)
 	})
 })

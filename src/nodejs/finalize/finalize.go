@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/cloudfoundry/libbuildpack"
 )
@@ -22,6 +23,8 @@ func Run(f *Finalizer) error {
 		f.Stager.Log.Error(err.Error())
 		return err
 	}
+
+	f.ListNodeConfig(os.Environ())
 
 	return nil
 }
@@ -49,6 +52,14 @@ func (f *Finalizer) WarnMissingPackageJSON() error {
 		f.Stager.Log.Warning("No package.json found")
 	}
 	return nil
+}
+
+func (f *Finalizer) ListNodeConfig(environment []string) {
+	for _, env := range environment {
+		if strings.HasPrefix(env, "NPM_CONFIG_") || strings.HasPrefix(env, "YARN_") || strings.HasPrefix(env, "NODE_") {
+			f.Stager.Log.Info(env)
+		}
+	}
 }
 
 func hasSubdirs(path string) (bool, error) {

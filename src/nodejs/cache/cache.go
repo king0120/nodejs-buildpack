@@ -64,6 +64,10 @@ func (c *Cache) Restore() error {
 
 	dirsToRestore := []string{".npm", ".yarn/cache", "bower_components"}
 
+	return c.restoreCacheDirs(dirsToRestore)
+}
+
+func (c *Cache) restoreCacheDirs(dirsToRestore []string) error {
 	for _, dir := range dirsToRestore {
 		dest := filepath.Join(c.Stager.BuildDir, dir)
 
@@ -94,8 +98,7 @@ func (c *Cache) Restore() error {
 			return err
 		}
 
-		err = os.Rename(source, dest)
-		if err != nil {
+		if err := os.Rename(source, dest); err != nil {
 			return err
 		}
 	}

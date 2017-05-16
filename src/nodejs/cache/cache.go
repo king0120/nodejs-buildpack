@@ -20,7 +20,7 @@ type Cache struct {
 	PackageJSONCacheDirs []string
 }
 
-var defaultCacheDirs = []string{".npm", ".yarn/cache", "bower_components"}
+var defaultCacheDirs = []string{".npm", ".cache/yarn", "bower_components"}
 
 func New(stager *libbuildpack.Stager) (*Cache, error) {
 	var err error
@@ -92,7 +92,7 @@ func (c *Cache) Save() error {
 		return err
 	}
 
-	dirsToRemove := []string{".npm", ".yarn/cache"}
+	dirsToRemove := []string{".npm", ".cache/yarn"}
 	for _, dir := range dirsToRemove {
 		if err := os.RemoveAll(filepath.Join(c.Stager.BuildDir, dir)); err != nil {
 			return err

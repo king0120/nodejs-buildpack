@@ -163,8 +163,8 @@ var _ = Describe("Cache", func() {
 				Expect(os.MkdirAll(filepath.Join(cacheDir, "node", ".npm"), 0755)).To(Succeed())
 				Expect(ioutil.WriteFile(filepath.Join(cacheDir, "node", ".npm", "cached"), []byte("xxx"), 0644)).To(Succeed())
 
-				Expect(os.MkdirAll(filepath.Join(cacheDir, "node", ".yarn", "cache"), 0755)).To(Succeed())
-				Expect(ioutil.WriteFile(filepath.Join(cacheDir, "node", ".yarn", "cache", "cached"), []byte("yyy"), 0644)).To(Succeed())
+				Expect(os.MkdirAll(filepath.Join(cacheDir, "node", ".cache", "yarn"), 0755)).To(Succeed())
+				Expect(ioutil.WriteFile(filepath.Join(cacheDir, "node", ".cache", "yarn", "cached"), []byte("yyy"), 0644)).To(Succeed())
 
 				Expect(os.MkdirAll(filepath.Join(cacheDir, "node", "bower_components"), 0755)).To(Succeed())
 				Expect(ioutil.WriteFile(filepath.Join(cacheDir, "node", "bower_components", "cached"), []byte("zzz"), 0644)).To(Succeed())
@@ -203,7 +203,7 @@ var _ = Describe("Cache", func() {
 
 						Expect(buffer.String()).To(ContainSubstring("Loading 3 from cacheDirectories (default):"))
 						Expect(buffer.String()).To(ContainSubstring("- .npm\n"))
-						Expect(buffer.String()).To(ContainSubstring("- .yarn/cache\n"))
+						Expect(buffer.String()).To(ContainSubstring("- .cache/yarn\n"))
 						Expect(buffer.String()).To(ContainSubstring("- bower_components\n"))
 					})
 
@@ -214,7 +214,7 @@ var _ = Describe("Cache", func() {
 
 						Expect(len(files)).To(Equal(3))
 						Expect(ioutil.ReadFile(filepath.Join(buildDir, ".npm", "cached"))).To(Equal([]byte("xxx")))
-						Expect(ioutil.ReadFile(filepath.Join(buildDir, ".yarn", "cache", "cached"))).To(Equal([]byte("yyy")))
+						Expect(ioutil.ReadFile(filepath.Join(buildDir, ".cache", "yarn", "cached"))).To(Equal([]byte("yyy")))
 						Expect(ioutil.ReadFile(filepath.Join(buildDir, "bower_components", "cached"))).To(Equal([]byte("zzz")))
 					})
 				})
@@ -260,7 +260,7 @@ var _ = Describe("Cache", func() {
 
 						Expect(buffer.String()).To(ContainSubstring("Loading 3 from cacheDirectories (default):"))
 						Expect(buffer.String()).To(ContainSubstring("- .npm (exists - skipping)\n"))
-						Expect(buffer.String()).To(ContainSubstring("- .yarn/cache\n"))
+						Expect(buffer.String()).To(ContainSubstring("- .cache/yarn\n"))
 						Expect(buffer.String()).To(ContainSubstring("- bower_components\n"))
 					})
 
@@ -271,7 +271,7 @@ var _ = Describe("Cache", func() {
 
 						Expect(len(files)).To(Equal(3))
 						Expect(ioutil.ReadFile(filepath.Join(buildDir, ".npm", "cached"))).To(Equal([]byte("from app")))
-						Expect(ioutil.ReadFile(filepath.Join(buildDir, ".yarn", "cache", "cached"))).To(Equal([]byte("yyy")))
+						Expect(ioutil.ReadFile(filepath.Join(buildDir, ".cache", "yarn", "cached"))).To(Equal([]byte("yyy")))
 						Expect(ioutil.ReadFile(filepath.Join(buildDir, "bower_components", "cached"))).To(Equal([]byte("zzz")))
 					})
 				})
@@ -286,7 +286,7 @@ var _ = Describe("Cache", func() {
 
 						Expect(buffer.String()).To(ContainSubstring("Loading 3 from cacheDirectories (default):"))
 						Expect(buffer.String()).To(ContainSubstring("- .npm (not cached - skipping)\n"))
-						Expect(buffer.String()).To(ContainSubstring("- .yarn/cache\n"))
+						Expect(buffer.String()).To(ContainSubstring("- .cache/yarn\n"))
 						Expect(buffer.String()).To(ContainSubstring("- bower_components\n"))
 					})
 
@@ -296,7 +296,7 @@ var _ = Describe("Cache", func() {
 						Expect(err).To(BeNil())
 
 						Expect(len(files)).To(Equal(2))
-						Expect(ioutil.ReadFile(filepath.Join(buildDir, ".yarn", "cache", "cached"))).To(Equal([]byte("yyy")))
+						Expect(ioutil.ReadFile(filepath.Join(buildDir, ".cache", "yarn", "cached"))).To(Equal([]byte("yyy")))
 						Expect(ioutil.ReadFile(filepath.Join(buildDir, "bower_components", "cached"))).To(Equal([]byte("zzz")))
 					})
 				})
@@ -345,9 +345,9 @@ var _ = Describe("Cache", func() {
 			Expect(os.MkdirAll(filepath.Join(buildDir, ".npm"), 0755)).To(Succeed())
 			Expect(ioutil.WriteFile(filepath.Join(buildDir, ".npm", "build1"), []byte("build1"), 0644)).To(Succeed())
 
-			Expect(os.MkdirAll(filepath.Join(buildDir, ".yarn", "cache"), 0755)).To(Succeed())
-			Expect(ioutil.WriteFile(filepath.Join(buildDir, ".yarn", "cache", "build2"), []byte("build2"), 0644)).To(Succeed())
-			Expect(ioutil.WriteFile(filepath.Join(buildDir, ".yarn", "build3"), []byte("build3"), 0644)).To(Succeed())
+			Expect(os.MkdirAll(filepath.Join(buildDir, ".cache", "yarn"), 0755)).To(Succeed())
+			Expect(ioutil.WriteFile(filepath.Join(buildDir, ".cache", "yarn", "build2"), []byte("build2"), 0644)).To(Succeed())
+			Expect(ioutil.WriteFile(filepath.Join(buildDir, ".cache", "build3"), []byte("build3"), 0644)).To(Succeed())
 		})
 
 		It("clears the previous cache", func() {
@@ -361,11 +361,11 @@ var _ = Describe("Cache", func() {
 			Expect(ioutil.ReadFile(filepath.Join(cacheDir, "node", "signature"))).To(Equal([]byte("1.1.1; 2.2.2; 3.3.3\n")))
 		})
 
-		It("removes .npm and .yarn/cache from the build dir", func() {
+		It("removes .npm and .cache/yarn from the build dir", func() {
 			Expect(cacher.Save()).To(Succeed())
 			Expect(filepath.Join(buildDir, ".npm")).NotTo(BeAnExistingFile())
-			Expect(filepath.Join(buildDir, ".yarn", "cache")).NotTo(BeAnExistingFile())
-			Expect(ioutil.ReadFile(filepath.Join(buildDir, "yarn", "build3"))).To(Equal([]byte("build3")))
+			Expect(filepath.Join(buildDir, ".cache", "yarn")).NotTo(BeAnExistingFile())
+			Expect(ioutil.ReadFile(filepath.Join(buildDir, ".cache", "build3"))).To(Equal([]byte("build3")))
 		})
 	})
 })

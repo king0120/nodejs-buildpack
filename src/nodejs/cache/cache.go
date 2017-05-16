@@ -93,36 +93,32 @@ func (c *Cache) selectCacheDirs() ([]string, error) {
 func (c *Cache) restoreCacheDirs(dirsToRestore []string) error {
 	for _, dir := range dirsToRestore {
 		dest := filepath.Join(c.Stager.BuildDir, dir)
-
-		exists, err := libbuildpack.FileExists(dest)
-		if err != nil {
-			return err
-		}
-
-		if exists {
-			c.Stager.Log.Info("- %s (exists - skipping)", dir)
-			continue
-		}
-
 		source := filepath.Join(c.Stager.CacheDir, "node", dir)
-		exists, err = libbuildpack.FileExists(source)
+
+		destExists, err := libbuildpack.FileExists(dest)
 		if err != nil {
 			return err
 		}
 
-		if !exists {
+		sourceExists, err := libbuildpack.FileExists(source)
+		if err != nil {
+			return err
+		}
+
+		if destExists {
+			c.Stager.Log.Info("- %s (exists - skipping)", dir)
+		} else if !sourceExists {
 			c.Stager.Log.Info("- %s (not cached - skipping)", dir)
-			continue
-		}
+		} else {
+			c.Stager.Log.Info("- %s", dir)
 
-		c.Stager.Log.Info("- %s", dir)
+			if err := os.MkdirAll(path.Dir(dest), 0755); err != nil {
+				return err
+			}
 
-		if err = os.MkdirAll(path.Dir(dest), 0755); err != nil {
-			return err
-		}
-
-		if err := os.Rename(source, dest); err != nil {
-			return err
+			if err := os.Rename(source, dest); err != nil {
+				return err
+			}
 		}
 	}
 

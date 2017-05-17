@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	n "nodejs/npm"
 	"os"
+	"path/filepath"
 
 	"github.com/cloudfoundry/libbuildpack"
 	"github.com/cloudfoundry/libbuildpack/ansicleaner"
@@ -55,6 +56,37 @@ var _ = Describe("Yarn", func() {
 	})
 
 	Describe("Build", func() {
+		Context("package.json exists", func() {
+			BeforeEach(func() {
+				Expect(ioutil.WriteFile(filepath.Join(buildDir, "package.json"), []byte("xxx"), 0644)).To(Succeed())
+				mockCommand.EXPECT().Execute(buildDir, gomock.Any(), gomock.Any(), "npm", "install", "--unsafe-perm", "--userconfig", filepath.Join(buildDir, ".npmrc"), "--cache", filepath.Join(buildDir, ".npm")).Return(nil)
+			})
+
+			Context("npm-shrinkwrap.json exists", func() {
+				BeforeEach(func() {
+					Expect(ioutil.WriteFile(filepath.Join(buildDir, "npm-shrinkwrap.json"), []byte("yyy"), 0644)).To(Succeed())
+				})
+
+				It("runs the install, telling users about shrinkwrap", func() {
+					Expect(npm.Build()).To(Succeed())
+					Expect(buffer.String()).To(ContainSubstring("Installing node modules (package.json + shrinkwrap)"))
+				})
+			})
+
+			Context("npm-shrinkwrap.json does not exist", func() {
+				It("runs the install", func() {
+					Expect(npm.Build()).To(Succeed())
+					Expect(buffer.String()).To(ContainSubstring("Installing node modules (package.json)"))
+				})
+			})
+		})
+
+		Context("package.json does not exist", func() {
+			It("skips the install", func() {
+				Expect(npm.Build()).To(Succeed())
+				Expect(buffer.String()).To(ContainSubstring("Skipping (no package.json)"))
+			})
+		})
 	})
 
 	Describe("Rebuild", func() {

@@ -2,11 +2,11 @@ package yarn_test
 
 import (
 	"bytes"
-	"errors"
 	"io"
 	"io/ioutil"
 	y "nodejs/yarn"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	"github.com/cloudfoundry/libbuildpack"
@@ -112,7 +112,7 @@ var _ = Describe("Yarn", func() {
 
 			Context("package.json does not match yarn.lock", func() {
 				BeforeEach(func() {
-					yarnCheck = errors.New("didn't match")
+					yarnCheck = &exec.ExitError{}
 				})
 
 				It("warns the user", func() {
@@ -157,7 +157,7 @@ var _ = Describe("Yarn", func() {
 
 			Context("package.json does not match yarn.lock", func() {
 				BeforeEach(func() {
-					yarnCheck = errors.New("didn't match")
+					yarnCheck = &exec.ExitError{}
 				})
 
 				It("warns the user", func() {

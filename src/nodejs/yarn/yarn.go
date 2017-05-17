@@ -4,6 +4,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	"github.com/cloudfoundry/libbuildpack"
@@ -58,6 +59,9 @@ func (y *Yarn) Build() error {
 	}
 
 	if err := y.Command.Execute(y.BuildDir, ioutil.Discard, os.Stderr, "yarn", checkArgs...); err != nil {
+		if _, ok := err.(*exec.ExitError); !ok {
+			return err
+		}
 		y.Logger.Warning("yarn.lock is outdated")
 	} else {
 		y.Logger.Info("yarn.lock and package.json match")

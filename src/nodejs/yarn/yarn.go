@@ -12,13 +12,10 @@ import (
 type Command interface {
 	Execute(dir string, stdout io.Writer, stderr io.Writer, program string, args ...string) error
 }
+
 type Logger interface {
 	Info(format string, args ...interface{})
 	Warning(format string, args ...interface{})
-	// Error(format string, args ...interface{})
-	// BeginStep(format string, args ...interface{})
-	// Debug(format string, args ...interface{})
-	// Protip(tip string, help_url string)
 }
 
 type Yarn struct {

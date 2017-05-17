@@ -24,45 +24,26 @@ type NPM struct {
 }
 
 func (n *NPM) Build() error {
-	pkgExists, err := libbuildpack.FileExists(filepath.Join(n.BuildDir, "package.json"))
+	doBuild, source, err := n.doBuild()
 	if err != nil {
 		return err
 	}
-
-	if !pkgExists {
-		n.Logger.Info("Skipping (no package.json)")
+	if !doBuild {
 		return nil
 	}
 
-	shrinkwrapExists, err := libbuildpack.FileExists(filepath.Join(n.BuildDir, "npm-shrinkwrap.json"))
-	if err != nil {
-		return err
-	}
-
-	if shrinkwrapExists {
-		n.Logger.Info("Installing node modules (package.json + shrinkwrap)")
-	} else {
-		n.Logger.Info("Installing node modules (package.json)")
-	}
-
+	n.Logger.Info("Installing node modules (%s)", source)
 	npmArgs := []string{"install", "--unsafe-perm", "--userconfig", filepath.Join(n.BuildDir, ".npmrc"), "--cache", filepath.Join(n.BuildDir, ".npm")}
 	return n.Command.Execute(n.BuildDir, os.Stdout, os.Stdout, "npm", npmArgs...)
 }
 
 func (n *NPM) Rebuild() error {
-	pkgExists, err := libbuildpack.FileExists(filepath.Join(n.BuildDir, "package.json"))
+	doBuild, source, err := n.doBuild()
 	if err != nil {
 		return err
 	}
-
-	if !pkgExists {
-		n.Logger.Info("Skipping (no package.json)")
+	if !doBuild {
 		return nil
-	}
-
-	shrinkwrapExists, err := libbuildpack.FileExists(filepath.Join(n.BuildDir, "npm-shrinkwrap.json"))
-	if err != nil {
-		return err
 	}
 
 	n.Logger.Info("Rebuilding any native modules")
@@ -70,12 +51,29 @@ func (n *NPM) Rebuild() error {
 		return err
 	}
 
-	if shrinkwrapExists {
-		n.Logger.Info("Installing any new modules (package.json + shrinkwrap)")
-	} else {
-		n.Logger.Info("Installing any new modules (package.json)")
-	}
-
+	n.Logger.Info("Installing any new modules (%s)", source)
 	npmArgs := []string{"install", "--unsafe-perm", "--userconfig", filepath.Join(n.BuildDir, ".npmrc")}
 	return n.Command.Execute(n.BuildDir, os.Stdout, os.Stdout, "npm", npmArgs...)
+}
+
+func (n *NPM) doBuild() (bool, string, error) {
+	pkgExists, err := libbuildpack.FileExists(filepath.Join(n.BuildDir, "package.json"))
+	if err != nil {
+		return false, "", err
+	}
+
+	if !pkgExists {
+		n.Logger.Info("Skipping (no package.json)")
+		return false, "", nil
+	}
+
+	shrinkwrapExists, err := libbuildpack.FileExists(filepath.Join(n.BuildDir, "npm-shrinkwrap.json"))
+	if err != nil {
+		return false, "", err
+	}
+
+	if shrinkwrapExists {
+		return true, "package.json + shrinkwrap", nil
+	}
+	return true, "package.json", nil
 }

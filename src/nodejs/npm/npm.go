@@ -2,6 +2,7 @@ package npm
 
 import (
 	"io"
+	"os"
 	"path/filepath"
 
 	"github.com/cloudfoundry/libbuildpack"
@@ -44,7 +45,8 @@ func (n *NPM) Build() error {
 		n.Logger.Info("Installing node modules (package.json)")
 	}
 
-	return nil
+	npmArgs := []string{"install", "--unsafe-perm", "--userconfig", filepath.Join(n.BuildDir, ".npmrc"), "--cache", filepath.Join(n.BuildDir, ".npm")}
+	return n.Command.Execute(n.BuildDir, os.Stdout, os.Stdout, "npm", npmArgs...)
 }
 
 func (n *NPM) Rebuild() error {

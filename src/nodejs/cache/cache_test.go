@@ -276,7 +276,7 @@ var _ = Describe("Cache", func() {
 					})
 				})
 
-				Context("some cached directories are already in build dir", func() {
+				Context("some requested directories are not in cache dir", func() {
 					BeforeEach(func() {
 						Expect(os.RemoveAll(filepath.Join(cacheDir, "node", ".npm"))).To(Succeed())
 					})
@@ -301,12 +301,12 @@ var _ = Describe("Cache", func() {
 					})
 				})
 
-				Context("NODE_MODULES_CACHE is set", func() {
+				Context("NODE_MODULES_CACHE is false", func() {
 					var oldNodeModulesCache string
 
 					BeforeEach(func() {
 						oldNodeModulesCache = os.Getenv("NODE_MODULES_CACHE")
-						Expect(os.Setenv("NODE_MODULES_CACHE", "true")).To(Succeed())
+						Expect(os.Setenv("NODE_MODULES_CACHE", "false")).To(Succeed())
 					})
 
 					AfterEach(func() {
@@ -348,6 +348,9 @@ var _ = Describe("Cache", func() {
 			Expect(os.MkdirAll(filepath.Join(buildDir, ".cache", "yarn"), 0755)).To(Succeed())
 			Expect(ioutil.WriteFile(filepath.Join(buildDir, ".cache", "yarn", "build2"), []byte("build2"), 0644)).To(Succeed())
 			Expect(ioutil.WriteFile(filepath.Join(buildDir, ".cache", "build3"), []byte("build3"), 0644)).To(Succeed())
+
+			Expect(os.MkdirAll(filepath.Join(buildDir, "bower_components"), 0755)).To(Succeed())
+			Expect(ioutil.WriteFile(filepath.Join(buildDir, "bower_components", "build4"), []byte("build4"), 0644)).To(Succeed())
 		})
 
 		It("clears the previous cache", func() {
@@ -366,6 +369,112 @@ var _ = Describe("Cache", func() {
 			Expect(filepath.Join(buildDir, ".npm")).NotTo(BeAnExistingFile())
 			Expect(filepath.Join(buildDir, ".cache", "yarn")).NotTo(BeAnExistingFile())
 			Expect(ioutil.ReadFile(filepath.Join(buildDir, ".cache", "build3"))).To(Equal([]byte("build3")))
+		})
+
+		Context("NODE_MODULES_CACHE is false", func() {
+			var oldNodeModulesCache string
+
+			BeforeEach(func() {
+				oldNodeModulesCache = os.Getenv("NODE_MODULES_CACHE")
+				Expect(os.Setenv("NODE_MODULES_CACHE", "false")).To(Succeed())
+			})
+
+			AfterEach(func() {
+				Expect(os.Setenv("NODE_MODULES_CACHE", oldNodeModulesCache)).To(Succeed())
+			})
+
+			It("alerts user", func() {
+				Expect(cacher.Save()).To(Succeed())
+
+				Expect(buffer.String()).To(ContainSubstring("Skipping cache save (disabled by config)"))
+			})
+
+			It("does not save the cache", func() {
+				Expect(cacher.Save()).To(Succeed())
+				files, err := filepath.Glob(filepath.Join(cacheDir, "node", "*"))
+				Expect(err).To(BeNil())
+				Expect(files).To(Equal([]string{filepath.Join(cacheDir, "node", "signature")}))
+			})
+		})
+
+		Context("PackageJSONCacheDirs is set", func() {
+			BeforeEach(func() {
+				Expect(os.MkdirAll(filepath.Join(buildDir, "first"), 0755)).To(Succeed())
+				Expect(ioutil.WriteFile(filepath.Join(buildDir, "first", "cached"), []byte("thing 1"), 0644)).To(Succeed())
+
+				Expect(os.MkdirAll(filepath.Join(buildDir, "second"), 0755)).To(Succeed())
+				Expect(ioutil.WriteFile(filepath.Join(buildDir, "second", "cached"), []byte("thing 2"), 0644)).To(Succeed())
+
+				cacher.PackageJSONCacheDirs = []string{"first", "second"}
+			})
+
+			It("alerts user", func() {
+				Expect(cacher.Save()).To(Succeed())
+
+				Expect(buffer.String()).To(ContainSubstring("Saving 2 cacheDirectories (package.json):"))
+				Expect(buffer.String()).To(ContainSubstring("- first\n"))
+				Expect(buffer.String()).To(ContainSubstring("- second\n"))
+			})
+
+			It("moves the requested cached directories", func() {
+				Expect(cacher.Save()).To(Succeed())
+				files, err := ioutil.ReadDir(filepath.Join(cacheDir, "node"))
+				Expect(err).To(BeNil())
+
+				Expect(len(files)).To(Equal(3))
+				Expect(ioutil.ReadFile(filepath.Join(cacheDir, "node", "signature"))).To(Equal([]byte("1.1.1; 2.2.2; 3.3.3\n")))
+				Expect(ioutil.ReadFile(filepath.Join(cacheDir, "node", "first", "cached"))).To(Equal([]byte("thing 1")))
+				Expect(ioutil.ReadFile(filepath.Join(cacheDir, "node", "second", "cached"))).To(Equal([]byte("thing 2")))
+			})
+		})
+
+		Context("default cache dirs exist in build dir", func() {
+			It("alerts user", func() {
+				Expect(cacher.Save()).To(Succeed())
+
+				Expect(buffer.String()).To(ContainSubstring("Saving 3 cacheDirectories (default):"))
+				Expect(buffer.String()).To(ContainSubstring("- .npm\n"))
+				Expect(buffer.String()).To(ContainSubstring("- .cache/yarn\n"))
+				Expect(buffer.String()).To(ContainSubstring("- bower_components\n"))
+			})
+
+			It("moves the requested cached directories", func() {
+				Expect(cacher.Save()).To(Succeed())
+				files, err := ioutil.ReadDir(filepath.Join(cacheDir, "node"))
+				Expect(err).To(BeNil())
+
+				Expect(len(files)).To(Equal(4))
+				Expect(ioutil.ReadFile(filepath.Join(cacheDir, "node", "signature"))).To(Equal([]byte("1.1.1; 2.2.2; 3.3.3\n")))
+				Expect(ioutil.ReadFile(filepath.Join(cacheDir, "node", ".npm", "build1"))).To(Equal([]byte("build1")))
+				Expect(ioutil.ReadFile(filepath.Join(cacheDir, "node", ".cache", "yarn", "build2"))).To(Equal([]byte("build2")))
+				Expect(ioutil.ReadFile(filepath.Join(cacheDir, "node", "bower_components", "build4"))).To(Equal([]byte("build4")))
+			})
+		})
+
+		Context("some requested directories are not in cache dir", func() {
+			BeforeEach(func() {
+				Expect(os.RemoveAll(filepath.Join(buildDir, ".npm"))).To(Succeed())
+			})
+
+			It("alerts user", func() {
+				Expect(cacher.Save()).To(Succeed())
+
+				Expect(buffer.String()).To(ContainSubstring("Saving 3 cacheDirectories (default):"))
+				Expect(buffer.String()).To(ContainSubstring("- .npm (nothing to cache)\n"))
+				Expect(buffer.String()).To(ContainSubstring("- .cache/yarn\n"))
+				Expect(buffer.String()).To(ContainSubstring("- bower_components\n"))
+			})
+
+			It("moves the requested cached directories", func() {
+				Expect(cacher.Save()).To(Succeed())
+				files, err := ioutil.ReadDir(filepath.Join(cacheDir, "node"))
+				Expect(err).To(BeNil())
+
+				Expect(len(files)).To(Equal(3))
+				Expect(ioutil.ReadFile(filepath.Join(cacheDir, "node", "signature"))).To(Equal([]byte("1.1.1; 2.2.2; 3.3.3\n")))
+				Expect(ioutil.ReadFile(filepath.Join(cacheDir, "node", ".cache", "yarn", "build2"))).To(Equal([]byte("build2")))
+				Expect(ioutil.ReadFile(filepath.Join(cacheDir, "node", "bower_components", "build4"))).To(Equal([]byte("build4")))
+			})
 		})
 	})
 })

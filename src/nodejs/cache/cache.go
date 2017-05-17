@@ -63,15 +63,13 @@ func (c *Cache) Restore() error {
 		return nil
 	}
 
-	if os.Getenv("NODE_MODULES_CACHE") != "" {
+	if os.Getenv("NODE_MODULES_CACHE") == "false" {
 		c.Stager.Log.Info("Skipping cache restore (disabled by config)")
 		return nil
 	}
 
-	dirsToRestore, err := c.selectCacheDirs()
-	if err != nil {
-		return err
-	}
+	source, dirsToRestore := c.selectCacheDirs()
+	c.Stager.Log.Info("Loading %d from cacheDirectories (%s):", len(dirsToRestore), source)
 
 	return c.restoreCacheDirs(dirsToRestore)
 }
@@ -92,6 +90,38 @@ func (c *Cache) Save() error {
 		return err
 	}
 
+	if os.Getenv("NODE_MODULES_CACHE") == "false" {
+		c.Stager.Log.Info("Skipping cache save (disabled by config)")
+		return nil
+	}
+
+	source, dirsToSave := c.selectCacheDirs()
+	c.Stager.Log.Info("Saving %d cacheDirectories (%s):", len(dirsToSave), source)
+
+	for _, dir := range dirsToSave {
+		dest := filepath.Join(c.Stager.CacheDir, "node", dir)
+		source := filepath.Join(c.Stager.BuildDir, dir)
+
+		sourceExists, err := libbuildpack.FileExists(source)
+		if err != nil {
+			return err
+		}
+
+		if sourceExists {
+			c.Stager.Log.Info("- %s", dir)
+
+			if err := os.MkdirAll(dest, 0755); err != nil {
+				return err
+			}
+
+			if err := libbuildpack.CopyDirectory(source, dest); err != nil {
+				return err
+			}
+		} else {
+			c.Stager.Log.Info("- %s (nothing to cache)", dir)
+		}
+	}
+
 	dirsToRemove := []string{".npm", ".cache/yarn"}
 	for _, dir := range dirsToRemove {
 		if err := os.RemoveAll(filepath.Join(c.Stager.BuildDir, dir)); err != nil {
@@ -102,14 +132,12 @@ func (c *Cache) Save() error {
 	return nil
 }
 
-func (c *Cache) selectCacheDirs() ([]string, error) {
+func (c *Cache) selectCacheDirs() (string, []string) {
 	if len(c.PackageJSONCacheDirs) > 0 {
-		c.Stager.Log.Info("Loading %d from cacheDirectories (package.json):", len(c.PackageJSONCacheDirs))
-		return c.PackageJSONCacheDirs, nil
+		return "package.json", c.PackageJSONCacheDirs
 	}
 
-	c.Stager.Log.Info("Loading 3 from cacheDirectories (default):")
-	return defaultCacheDirs, nil
+	return "default", defaultCacheDirs
 }
 
 func (c *Cache) restoreCacheDirs(dirsToRestore []string) error {

@@ -50,5 +50,32 @@ func (n *NPM) Build() error {
 }
 
 func (n *NPM) Rebuild() error {
-	return nil
+	pkgExists, err := libbuildpack.FileExists(filepath.Join(n.BuildDir, "package.json"))
+	if err != nil {
+		return err
+	}
+
+	if !pkgExists {
+		n.Logger.Info("Skipping (no package.json)")
+		return nil
+	}
+
+	shrinkwrapExists, err := libbuildpack.FileExists(filepath.Join(n.BuildDir, "npm-shrinkwrap.json"))
+	if err != nil {
+		return err
+	}
+
+	n.Logger.Info("Rebuilding any native modules")
+	if err := n.Command.Execute(n.BuildDir, os.Stdout, os.Stdout, "npm", "rebuild", "--nodedir="+os.Getenv("NODE_HOME")); err != nil {
+		return err
+	}
+
+	if shrinkwrapExists {
+		n.Logger.Info("Installing any new modules (package.json + shrinkwrap)")
+	} else {
+		n.Logger.Info("Installing any new modules (package.json)")
+	}
+
+	npmArgs := []string{"install", "--unsafe-perm", "--userconfig", filepath.Join(n.BuildDir, ".npmrc")}
+	return n.Command.Execute(n.BuildDir, os.Stdout, os.Stdout, "npm", npmArgs...)
 }

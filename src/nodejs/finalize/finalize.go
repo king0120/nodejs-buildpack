@@ -3,6 +3,7 @@ package finalize
 import (
 	"bytes"
 	"io/ioutil"
+	"nodejs/cache"
 	"os"
 	"path/filepath"
 	"strings"
@@ -26,6 +27,22 @@ func Run(f *Finalizer) error {
 	}
 
 	f.ListNodeConfig(os.Environ())
+
+	cacher, err := cache.New(f.Stager)
+	if err != nil {
+		f.Stager.Log.Error("Unable to initialize cache: %s", err.Error())
+		return err
+	}
+
+	if err := cacher.Restore(); err != nil {
+		f.Stager.Log.Error("Unable to restore cache: %s", err.Error())
+		return err
+	}
+
+	if err := cacher.Save(); err != nil {
+		f.Stager.Log.Error("Unable to save cache: %s", err.Error())
+		return err
+	}
 
 	return nil
 }

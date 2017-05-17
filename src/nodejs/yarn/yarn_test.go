@@ -2,6 +2,7 @@ package yarn_test
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"io/ioutil"
 	y "nodejs/yarn"
@@ -26,6 +27,7 @@ var _ = Describe("Yarn", func() {
 		buffer      *bytes.Buffer
 		mockCtrl    *gomock.Controller
 		mockCommand *MockCommand
+		yarnCheck   error
 	)
 
 	BeforeEach(func() {
@@ -69,7 +71,7 @@ var _ = Describe("Yarn", func() {
 		})
 
 		Context("has npm-packages-offline-cache", func() {
-			BeforeEach(func() {
+			JustBeforeEach(func() {
 				Expect(os.MkdirAll(filepath.Join(buildDir, "npm-packages-offline-cache"), 0755)).To(Succeed())
 
 				gomock.InOrder(
@@ -78,6 +80,7 @@ var _ = Describe("Yarn", func() {
 						func(_ string, _, _ io.Writer, _, _, _, _, _, _, _ string) {
 							Expect(os.Getenv("npm_config_nodedir")).To(Equal("test_node_home"))
 						}).Return(nil),
+					mockCommand.EXPECT().Execute(buildDir, ioutil.Discard, gomock.Any(), "yarn", "check", "--offline").Return(yarnCheck),
 				)
 			})
 
@@ -95,14 +98,39 @@ var _ = Describe("Yarn", func() {
 			It("runs yarn install with npm_config_nodedir", func() {
 				Expect(yarn.Build()).To(Succeed())
 			})
+
+			Context("package.json matches yarn.lock", func() {
+				BeforeEach(func() {
+					yarnCheck = nil
+				})
+
+				It("reports the fact", func() {
+					Expect(yarn.Build()).To(Succeed())
+					Expect(buffer.String()).To(ContainSubstring("yarn.lock and package.json match"))
+				})
+			})
+
+			Context("package.json does not match yarn.lock", func() {
+				BeforeEach(func() {
+					yarnCheck = errors.New("didn't match")
+				})
+
+				It("warns the user", func() {
+					Expect(yarn.Build()).To(Succeed())
+					Expect(buffer.String()).To(ContainSubstring("**WARNING** yarn.lock is outdated"))
+				})
+			})
 		})
 
 		Context("NO npm-packages-offline-cache directory", func() {
-			BeforeEach(func() {
-				mockCommand.EXPECT().Execute(buildDir, gomock.Any(), gomock.Any(), "yarn", "install", "--pure-lockfile", "--ignore-engines", "--cache-folder", filepath.Join(buildDir, ".cache/yarn")).Do(
-					func(_ string, _, _ io.Writer, _, _, _, _, _, _ string) {
-						Expect(os.Getenv("npm_config_nodedir")).To(Equal("test_node_home"))
-					}).Return(nil)
+			JustBeforeEach(func() {
+				gomock.InOrder(
+					mockCommand.EXPECT().Execute(buildDir, gomock.Any(), gomock.Any(), "yarn", "install", "--pure-lockfile", "--ignore-engines", "--cache-folder", filepath.Join(buildDir, ".cache/yarn")).Do(
+						func(_ string, _, _ io.Writer, _, _, _, _, _, _ string) {
+							Expect(os.Getenv("npm_config_nodedir")).To(Equal("test_node_home"))
+						}).Return(nil),
+					mockCommand.EXPECT().Execute(buildDir, ioutil.Discard, gomock.Any(), "yarn", "check").Return(yarnCheck),
+				)
 			})
 
 			It("tells the user it is running in online mode", func() {
@@ -114,6 +142,28 @@ var _ = Describe("Yarn", func() {
 
 			It("runs yarn install", func() {
 				Expect(yarn.Build()).To(Succeed())
+			})
+
+			Context("package.json matches yarn.lock", func() {
+				BeforeEach(func() {
+					yarnCheck = nil
+				})
+
+				It("reports the fact", func() {
+					Expect(yarn.Build()).To(Succeed())
+					Expect(buffer.String()).To(ContainSubstring("yarn.lock and package.json match"))
+				})
+			})
+
+			Context("package.json does not match yarn.lock", func() {
+				BeforeEach(func() {
+					yarnCheck = errors.New("didn't match")
+				})
+
+				It("warns the user", func() {
+					Expect(yarn.Build()).To(Succeed())
+					Expect(buffer.String()).To(ContainSubstring("**WARNING** yarn.lock is outdated"))
+				})
 			})
 		})
 	})

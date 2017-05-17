@@ -194,16 +194,33 @@ var _ = Describe("Finalize", func() {
 			BeforeEach(func() {
 				Expect(ioutil.WriteFile(filepath.Join(buildDir, "yarn.lock"), []byte("{}"), 0644)).To(Succeed())
 			})
-			It("sets UseYarn", func() {
+			It("sets UseYarn to true", func() {
 				Expect(finalizer.ReadPackageJSON()).To(Succeed())
 				Expect(finalizer.UseYarn).To(BeTrue())
 			})
 		})
 
 		Context("yarn.lock does not exist", func() {
-			It("sets UseYarn", func() {
+			It("sets UseYarn to false", func() {
 				Expect(finalizer.ReadPackageJSON()).To(Succeed())
 				Expect(finalizer.UseYarn).To(BeFalse())
+			})
+		})
+
+		Context("node_modules exists", func() {
+			BeforeEach(func() {
+				Expect(os.MkdirAll(filepath.Join(buildDir, "node_modules"), 0755)).To(Succeed())
+			})
+			It("sets NPMRebuild to true", func() {
+				Expect(finalizer.ReadPackageJSON()).To(Succeed())
+				Expect(finalizer.NPMRebuild).To(BeTrue())
+			})
+		})
+
+		Context("node_modules does not exist", func() {
+			It("sets NPMRebuild to false", func() {
+				Expect(finalizer.ReadPackageJSON()).To(Succeed())
+				Expect(finalizer.NPMRebuild).To(BeFalse())
 			})
 		})
 	})
@@ -256,10 +273,55 @@ var _ = Describe("Finalize", func() {
 					finalizer.PostBuild = "descriptive"
 				})
 
-				It("runs the prebuild script", func() {
+				It("runs the postbuild script", func() {
 					mockCommandRunner.EXPECT().Execute(buildDir, gomock.Any(), gomock.Any(), "yarn", "run", "descriptive")
 					Expect(finalizer.BuildDependencies()).To(Succeed())
 					Expect(buffer.String()).To(ContainSubstring("Running descriptive (yarn)"))
+				})
+			})
+		})
+
+		Context("yarn.lock does not exist", func() {
+			It("runs npm install", func() {
+				mockNPM.EXPECT().Build().Return(nil)
+				Expect(finalizer.BuildDependencies()).To(Succeed())
+			})
+
+			Context("prebuild is specified", func() {
+				BeforeEach(func() {
+					mockNPM.EXPECT().Build().Return(nil)
+					finalizer.PreBuild = "prescriptive"
+				})
+
+				It("runs the prebuild script", func() {
+					mockCommandRunner.EXPECT().Execute(buildDir, gomock.Any(), gomock.Any(), "npm", "run", "prescriptive", "--if-present")
+					Expect(finalizer.BuildDependencies()).To(Succeed())
+					Expect(buffer.String()).To(ContainSubstring("Running prescriptive"))
+				})
+			})
+
+			Context("npm rebuild is specified", func() {
+				BeforeEach(func() {
+					mockNPM.EXPECT().Rebuild().Return(nil)
+					finalizer.NPMRebuild = true
+				})
+
+				It("runs npm rebuild ", func() {
+					Expect(finalizer.BuildDependencies()).To(Succeed())
+					Expect(buffer.String()).To(ContainSubstring("Prebuild detected (node_modules already exists)"))
+				})
+			})
+
+			Context("postbuild is specified", func() {
+				BeforeEach(func() {
+					mockNPM.EXPECT().Build().Return(nil)
+					finalizer.PostBuild = "descriptive"
+				})
+
+				It("runs the postbuild script", func() {
+					mockCommandRunner.EXPECT().Execute(buildDir, gomock.Any(), gomock.Any(), "npm", "run", "descriptive", "--if-present")
+					Expect(finalizer.BuildDependencies()).To(Succeed())
+					Expect(buffer.String()).To(ContainSubstring("Running descriptive"))
 				})
 			})
 		})

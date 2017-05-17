@@ -20,13 +20,14 @@ type NPM interface {
 }
 
 type Finalizer struct {
-	Stager    *libbuildpack.Stager
-	CacheDirs []string
-	PreBuild  string
-	PostBuild string
-	Yarn      Yarn
-	NPM       NPM
-	UseYarn   bool
+	Stager     *libbuildpack.Stager
+	CacheDirs  []string
+	PreBuild   string
+	PostBuild  string
+	NPM        NPM
+	NPMRebuild bool
+	Yarn       Yarn
+	UseYarn    bool
 }
 
 func Run(f *Finalizer) error {
@@ -78,6 +79,10 @@ func (f *Finalizer) ReadPackageJSON() error {
 	}
 
 	if f.UseYarn, err = libbuildpack.FileExists(filepath.Join(f.Stager.BuildDir, "yarn.lock")); err != nil {
+		return err
+	}
+
+	if f.NPMRebuild, err = libbuildpack.FileExists(filepath.Join(f.Stager.BuildDir, "node_modules")); err != nil {
 		return err
 	}
 
@@ -142,21 +147,48 @@ func (f *Finalizer) ListNodeConfig(environment []string) {
 func (f *Finalizer) BuildDependencies() error {
 	f.Stager.Log.BeginStep("Building dependencies")
 
-	if f.PreBuild != "" {
-		f.Stager.Log.Info("Running %s (yarn)", f.PreBuild)
-		if err := f.Stager.Command.Execute(f.Stager.BuildDir, os.Stdout, os.Stderr, "yarn", "run", f.PreBuild); err != nil {
+	if f.UseYarn {
+		if f.PreBuild != "" {
+			f.Stager.Log.Info("Running %s (yarn)", f.PreBuild)
+			if err := f.Stager.Command.Execute(f.Stager.BuildDir, os.Stdout, os.Stderr, "yarn", "run", f.PreBuild); err != nil {
+				return err
+			}
+		}
+
+		if err := f.Yarn.Build(); err != nil {
 			return err
 		}
-	}
 
-	if err := f.Yarn.Build(); err != nil {
-		return err
-	}
+		if f.PostBuild != "" {
+			f.Stager.Log.Info("Running %s (yarn)", f.PostBuild)
+			if err := f.Stager.Command.Execute(f.Stager.BuildDir, os.Stdout, os.Stderr, "yarn", "run", f.PostBuild); err != nil {
+				return err
+			}
+		}
+	} else {
+		if f.PreBuild != "" {
+			f.Stager.Log.Info("Running %s", f.PreBuild)
+			if err := f.Stager.Command.Execute(f.Stager.BuildDir, os.Stdout, os.Stderr, "npm", "run", f.PreBuild, "--if-present"); err != nil {
+				return err
+			}
+		}
 
-	if f.PostBuild != "" {
-		f.Stager.Log.Info("Running %s (yarn)", f.PostBuild)
-		if err := f.Stager.Command.Execute(f.Stager.BuildDir, os.Stdout, os.Stderr, "yarn", "run", f.PostBuild); err != nil {
-			return err
+		if f.NPMRebuild {
+			f.Stager.Log.Info("Prebuild detected (node_modules already exists)", f.PreBuild)
+			if err := f.NPM.Rebuild(); err != nil {
+				return err
+			}
+		} else {
+			if err := f.NPM.Build(); err != nil {
+				return err
+			}
+		}
+
+		if f.PostBuild != "" {
+			f.Stager.Log.Info("Running %s", f.PostBuild)
+			if err := f.Stager.Command.Execute(f.Stager.BuildDir, os.Stdout, os.Stderr, "npm", "run", f.PostBuild, "--if-present"); err != nil {
+				return err
+			}
 		}
 	}
 

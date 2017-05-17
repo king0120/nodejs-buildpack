@@ -187,14 +187,7 @@ func (f *Finalizer) runPrebuild(tool string) error {
 		return nil
 	}
 
-	args := []string{"run", f.PreBuild}
-	if tool == "npm" {
-		args = append(args, "--if-present")
-	}
-
-	f.Stager.Log.Info("Running %s (%s)", f.PreBuild, tool)
-
-	return f.Stager.Command.Execute(f.Stager.BuildDir, os.Stdout, os.Stderr, tool, args...)
+	return f.runScript(f.PreBuild, tool)
 }
 
 func (f *Finalizer) runPostbuild(tool string) error {
@@ -202,14 +195,19 @@ func (f *Finalizer) runPostbuild(tool string) error {
 		return nil
 	}
 
-	args := []string{"run", f.PostBuild}
+	return f.runScript(f.PostBuild, tool)
+}
+
+func (f *Finalizer) runScript(script, tool string) error {
+	args := []string{"run", script}
 	if tool == "npm" {
 		args = append(args, "--if-present")
 	}
 
-	f.Stager.Log.Info("Running %s (%s)", f.PostBuild, tool)
+	f.Stager.Log.Info("Running %s (%s)", script, tool)
 
 	return f.Stager.Command.Execute(f.Stager.BuildDir, os.Stdout, os.Stderr, tool, args...)
+
 }
 
 func hasSubdirs(path string) (bool, error) {

@@ -3,6 +3,8 @@ package main
 import (
 	"nodejs/finalize"
 	_ "nodejs/hooks"
+	"nodejs/npm"
+	"nodejs/yarn"
 	"os"
 
 	"github.com/cloudfoundry/libbuildpack"
@@ -21,6 +23,8 @@ func main() {
 
 	f := finalize.Finalizer{
 		Stager: stager,
+		Yarn:   &yarn.Yarn{BuildDir: stager.BuildDir, Command: stager.Command},
+		NPM:    &npm.NPM{BuildDir: stager.BuildDir, Command: stager.Command},
 	}
 
 	if err := finalize.Run(&f); err != nil {

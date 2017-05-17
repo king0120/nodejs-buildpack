@@ -11,11 +11,21 @@ import (
 	"github.com/cloudfoundry/libbuildpack"
 )
 
+type Yarn interface {
+	Build() error
+}
+type NPM interface {
+	Build() error
+	Rebuild() error
+}
+
 type Finalizer struct {
 	Stager    *libbuildpack.Stager
 	CacheDirs []string
 	PreBuild  string
 	PostBuild string
+	Yarn      Yarn
+	NPM       NPM
 }
 
 func Run(f *Finalizer) error {
@@ -39,6 +49,11 @@ func Run(f *Finalizer) error {
 
 	if err := cacher.Restore(); err != nil {
 		f.Stager.Log.Error("Unable to restore cache: %s", err.Error())
+		return err
+	}
+
+	if err := f.BuildDependencies(); err != nil {
+		f.Stager.Log.Error("Unable to build dependencies: %s", err.Error())
 		return err
 	}
 

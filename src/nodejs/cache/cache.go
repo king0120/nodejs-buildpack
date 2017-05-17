@@ -98,7 +98,6 @@ func (c *Cache) Save() error {
 
 	if err := c.saveCacheDirs(dirsToSave); err != nil {
 		return err
-
 	}
 
 	dirsToRemove := []string{".npm", ".cache/yarn"}

@@ -17,6 +17,7 @@ import (
 )
 
 //go:generate mockgen -source=../vendor/github.com/cloudfoundry/libbuildpack/command_runner.go --destination=mocks_command_runner_test.go --package=finalize_test
+//go:generate mockgen -source=finalize.go --destination=mocks_test.go --package=finalize_test
 
 var _ = Describe("Finalize", func() {
 	var (
@@ -27,6 +28,8 @@ var _ = Describe("Finalize", func() {
 		buffer            *bytes.Buffer
 		mockCtrl          *gomock.Controller
 		mockCommandRunner *MockCommandRunner
+		mockYarn          *MockYarn
+		mockNPM           *MockNPM
 	)
 
 	BeforeEach(func() {
@@ -40,7 +43,8 @@ var _ = Describe("Finalize", func() {
 
 		mockCtrl = gomock.NewController(GinkgoT())
 		mockCommandRunner = NewMockCommandRunner(mockCtrl)
-
+		mockYarn = NewMockYarn(mockCtrl)
+		mockNPM = NewMockNPM(mockCtrl)
 	})
 
 	JustBeforeEach(func() {
@@ -52,6 +56,8 @@ var _ = Describe("Finalize", func() {
 
 		finalizer = &finalize.Finalizer{
 			Stager: bps,
+			Yarn:   mockYarn,
+			NPM:    mockNPM,
 		}
 	})
 

@@ -230,11 +230,37 @@ var _ = Describe("Finalize", func() {
 
 	Describe("BuildDependencies", func() {
 		Context("yarn.lock exists", func() {
-		})
-
-		Context("prebuild is specified", func() {
 			BeforeEach(func() {
-				finalizer.PreBuild = "prescriptive"
+				finalizer.UseYarn = true
+				mockYarn.EXPECT().Build().Return(nil)
+			})
+
+			It("runs yarn install", func() {
+				Expect(finalizer.BuildDependencies()).To(Succeed())
+			})
+
+			Context("prebuild is specified", func() {
+				BeforeEach(func() {
+					finalizer.PreBuild = "prescriptive"
+				})
+
+				It("runs the prebuild script", func() {
+					mockCommandRunner.EXPECT().Execute(buildDir, gomock.Any(), gomock.Any(), "yarn", "run", "prescriptive")
+					Expect(finalizer.BuildDependencies()).To(Succeed())
+					Expect(buffer.String()).To(ContainSubstring("Running prescriptive (yarn)"))
+				})
+			})
+
+			Context("postbuild is specified", func() {
+				BeforeEach(func() {
+					finalizer.PostBuild = "descriptive"
+				})
+
+				It("runs the prebuild script", func() {
+					mockCommandRunner.EXPECT().Execute(buildDir, gomock.Any(), gomock.Any(), "yarn", "run", "descriptive")
+					Expect(finalizer.BuildDependencies()).To(Succeed())
+					Expect(buffer.String()).To(ContainSubstring("Running descriptive (yarn)"))
+				})
 			})
 		})
 	})

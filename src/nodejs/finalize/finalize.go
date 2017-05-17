@@ -140,6 +140,26 @@ func (f *Finalizer) ListNodeConfig(environment []string) {
 }
 
 func (f *Finalizer) BuildDependencies() error {
+	f.Stager.Log.BeginStep("Building dependencies")
+
+	if f.PreBuild != "" {
+		f.Stager.Log.Info("Running %s (yarn)", f.PreBuild)
+		if err := f.Stager.Command.Execute(f.Stager.BuildDir, os.Stdout, os.Stderr, "yarn", "run", f.PreBuild); err != nil {
+			return err
+		}
+	}
+
+	if err := f.Yarn.Build(); err != nil {
+		return err
+	}
+
+	if f.PostBuild != "" {
+		f.Stager.Log.Info("Running %s (yarn)", f.PostBuild)
+		if err := f.Stager.Command.Execute(f.Stager.BuildDir, os.Stdout, os.Stderr, "yarn", "run", f.PostBuild); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

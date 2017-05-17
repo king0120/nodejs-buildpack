@@ -296,7 +296,7 @@ var _ = Describe("Finalize", func() {
 				It("runs the prebuild script", func() {
 					mockCommandRunner.EXPECT().Execute(buildDir, gomock.Any(), gomock.Any(), "npm", "run", "prescriptive", "--if-present")
 					Expect(finalizer.BuildDependencies()).To(Succeed())
-					Expect(buffer.String()).To(ContainSubstring("Running prescriptive"))
+					Expect(buffer.String()).To(ContainSubstring("Running prescriptive (npm)"))
 				})
 			})
 
@@ -321,7 +321,7 @@ var _ = Describe("Finalize", func() {
 				It("runs the postbuild script", func() {
 					mockCommandRunner.EXPECT().Execute(buildDir, gomock.Any(), gomock.Any(), "npm", "run", "descriptive", "--if-present")
 					Expect(finalizer.BuildDependencies()).To(Succeed())
-					Expect(buffer.String()).To(ContainSubstring("Running descriptive"))
+					Expect(buffer.String()).To(ContainSubstring("Running descriptive (npm)"))
 				})
 			})
 		})

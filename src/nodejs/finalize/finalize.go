@@ -145,34 +145,24 @@ func (f *Finalizer) ListNodeConfig(environment []string) {
 }
 
 func (f *Finalizer) BuildDependencies() error {
+	var tool string
+	if f.UseYarn {
+		tool = "yarn"
+	} else {
+		tool = "npm"
+	}
+
 	f.Stager.Log.BeginStep("Building dependencies")
 
-	if f.UseYarn {
-		if f.PreBuild != "" {
-			f.Stager.Log.Info("Running %s (yarn)", f.PreBuild)
-			if err := f.Stager.Command.Execute(f.Stager.BuildDir, os.Stdout, os.Stderr, "yarn", "run", f.PreBuild); err != nil {
-				return err
-			}
-		}
+	if err := f.runPrebuild(tool); err != nil {
+		return err
+	}
 
+	if f.UseYarn {
 		if err := f.Yarn.Build(); err != nil {
 			return err
 		}
-
-		if f.PostBuild != "" {
-			f.Stager.Log.Info("Running %s (yarn)", f.PostBuild)
-			if err := f.Stager.Command.Execute(f.Stager.BuildDir, os.Stdout, os.Stderr, "yarn", "run", f.PostBuild); err != nil {
-				return err
-			}
-		}
 	} else {
-		if f.PreBuild != "" {
-			f.Stager.Log.Info("Running %s", f.PreBuild)
-			if err := f.Stager.Command.Execute(f.Stager.BuildDir, os.Stdout, os.Stderr, "npm", "run", f.PreBuild, "--if-present"); err != nil {
-				return err
-			}
-		}
-
 		if f.NPMRebuild {
 			f.Stager.Log.Info("Prebuild detected (node_modules already exists)", f.PreBuild)
 			if err := f.NPM.Rebuild(); err != nil {
@@ -183,16 +173,43 @@ func (f *Finalizer) BuildDependencies() error {
 				return err
 			}
 		}
+	}
 
-		if f.PostBuild != "" {
-			f.Stager.Log.Info("Running %s", f.PostBuild)
-			if err := f.Stager.Command.Execute(f.Stager.BuildDir, os.Stdout, os.Stderr, "npm", "run", f.PostBuild, "--if-present"); err != nil {
-				return err
-			}
-		}
+	if err := f.runPostbuild(tool); err != nil {
+		return err
 	}
 
 	return nil
+}
+
+func (f *Finalizer) runPrebuild(tool string) error {
+	if f.PreBuild == "" {
+		return nil
+	}
+
+	args := []string{"run", f.PreBuild}
+	if tool == "npm" {
+		args = append(args, "--if-present")
+	}
+
+	f.Stager.Log.Info("Running %s (%s)", f.PreBuild, tool)
+
+	return f.Stager.Command.Execute(f.Stager.BuildDir, os.Stdout, os.Stderr, tool, args...)
+}
+
+func (f *Finalizer) runPostbuild(tool string) error {
+	if f.PostBuild == "" {
+		return nil
+	}
+
+	args := []string{"run", f.PostBuild}
+	if tool == "npm" {
+		args = append(args, "--if-present")
+	}
+
+	f.Stager.Log.Info("Running %s (%s)", f.PostBuild, tool)
+
+	return f.Stager.Command.Execute(f.Stager.BuildDir, os.Stdout, os.Stderr, tool, args...)
 }
 
 func hasSubdirs(path string) (bool, error) {

@@ -26,10 +26,11 @@ type Finalizer struct {
 	PostBuild string
 	Yarn      Yarn
 	NPM       NPM
+	UseYarn   bool
 }
 
 func Run(f *Finalizer) error {
-	if err := f.ReadPackageJson(); err != nil {
+	if err := f.ReadPackageJSON(); err != nil {
 		f.Stager.Log.Error("Failed parsing package.json: %s", err.Error())
 		return err
 	}
@@ -65,7 +66,8 @@ func Run(f *Finalizer) error {
 	return nil
 }
 
-func (f *Finalizer) ReadPackageJson() error {
+func (f *Finalizer) ReadPackageJSON() error {
+	var err error
 	var p struct {
 		CacheDirs1 []string `json:"cacheDirectories"`
 		CacheDirs2 []string `json:"cache_directories"`
@@ -74,6 +76,11 @@ func (f *Finalizer) ReadPackageJson() error {
 			PostBuild string `json:"heroku-postbuild"`
 		} `json:"scripts"`
 	}
+
+	if f.UseYarn, err = libbuildpack.FileExists(filepath.Join(f.Stager.BuildDir, "yarn.lock")); err != nil {
+		return err
+	}
+
 	f.CacheDirs = []string{}
 
 	if err := libbuildpack.NewJSON().Load(filepath.Join(f.Stager.BuildDir, "package.json"), &p); err != nil {
@@ -130,6 +137,10 @@ func (f *Finalizer) ListNodeConfig(environment []string) {
 	if npmConfigProductionTrue && nodeEnv != "production" {
 		f.Stager.Log.Info("npm scripts will see NODE_ENV=production (not '%s')\nhttps://docs.npmjs.com/misc/config#production", nodeEnv)
 	}
+}
+
+func (f *Finalizer) BuildDependencies() error {
+	return nil
 }
 
 func hasSubdirs(path string) (bool, error) {

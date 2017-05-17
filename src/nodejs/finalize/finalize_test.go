@@ -45,9 +45,7 @@ var _ = Describe("Finalize", func() {
 		mockCommandRunner = NewMockCommandRunner(mockCtrl)
 		mockYarn = NewMockYarn(mockCtrl)
 		mockNPM = NewMockNPM(mockCtrl)
-	})
 
-	JustBeforeEach(func() {
 		bps := &libbuildpack.Stager{
 			BuildDir: buildDir,
 			Log:      logger,
@@ -102,7 +100,7 @@ var _ = Describe("Finalize", func() {
 		})
 	})
 
-	Describe("ReadPackageJson", func() {
+	Describe("ReadPackageJSON", func() {
 		Context("package.json has cacheDirectories", func() {
 			BeforeEach(func() {
 				packageJSON := `
@@ -117,7 +115,7 @@ var _ = Describe("Finalize", func() {
 			})
 
 			It("sets CacheDirs", func() {
-				Expect(finalizer.ReadPackageJson()).To(Succeed())
+				Expect(finalizer.ReadPackageJSON()).To(Succeed())
 				Expect(finalizer.CacheDirs).To(Equal([]string{"first", "second"}))
 			})
 		})
@@ -136,7 +134,7 @@ var _ = Describe("Finalize", func() {
 			})
 
 			It("sets CacheDirs", func() {
-				Expect(finalizer.ReadPackageJson()).To(Succeed())
+				Expect(finalizer.ReadPackageJSON()).To(Succeed())
 				Expect(finalizer.CacheDirs).To(Equal([]string{"third", "fourth"}))
 			})
 		})
@@ -156,7 +154,7 @@ var _ = Describe("Finalize", func() {
 			})
 
 			It("sets PreBuild", func() {
-				Expect(finalizer.ReadPackageJson()).To(Succeed())
+				Expect(finalizer.ReadPackageJSON()).To(Succeed())
 				Expect(finalizer.PreBuild).To(Equal("makestuff"))
 			})
 		})
@@ -176,19 +174,36 @@ var _ = Describe("Finalize", func() {
 			})
 
 			It("sets PostBuild", func() {
-				Expect(finalizer.ReadPackageJson()).To(Succeed())
+				Expect(finalizer.ReadPackageJSON()).To(Succeed())
 				Expect(finalizer.PostBuild).To(Equal("logstuff"))
 			})
 		})
 
 		Context("package.json does not exist", func() {
 			It("warns user", func() {
-				Expect(finalizer.ReadPackageJson()).To(Succeed())
+				Expect(finalizer.ReadPackageJSON()).To(Succeed())
 				Expect(buffer.String()).To(ContainSubstring("**WARNING** No package.json found"))
 			})
 			It("initializes config based values", func() {
-				Expect(finalizer.ReadPackageJson()).To(Succeed())
+				Expect(finalizer.ReadPackageJSON()).To(Succeed())
 				Expect(finalizer.CacheDirs).To(Equal([]string{}))
+			})
+		})
+
+		Context("yarn.lock exists", func() {
+			BeforeEach(func() {
+				Expect(ioutil.WriteFile(filepath.Join(buildDir, "yarn.lock"), []byte("{}"), 0644)).To(Succeed())
+			})
+			It("sets UseYarn", func() {
+				Expect(finalizer.ReadPackageJSON()).To(Succeed())
+				Expect(finalizer.UseYarn).To(BeTrue())
+			})
+		})
+
+		Context("yarn.lock does not exist", func() {
+			It("sets UseYarn", func() {
+				Expect(finalizer.ReadPackageJSON()).To(Succeed())
+				Expect(finalizer.UseYarn).To(BeFalse())
 			})
 		})
 	})
@@ -210,6 +225,17 @@ var _ = Describe("Finalize", func() {
 			finalizer.ListNodeConfig([]string{"NPM_CONFIG_PRODUCTION=true", "NODE_ENV=development"})
 			Expect(buffer.String()).To(ContainSubstring("npm scripts will see NODE_ENV=production (not 'development')"))
 			Expect(buffer.String()).To(ContainSubstring("https://docs.npmjs.com/misc/config#production"))
+		})
+	})
+
+	Describe("BuildDependencies", func() {
+		Context("yarn.lock exists", func() {
+		})
+
+		Context("prebuild is specified", func() {
+			BeforeEach(func() {
+				finalizer.PreBuild = "prescriptive"
+			})
 		})
 	})
 })

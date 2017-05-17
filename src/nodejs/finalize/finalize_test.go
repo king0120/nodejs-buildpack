@@ -96,20 +96,93 @@ var _ = Describe("Finalize", func() {
 		})
 	})
 
-	Describe("WarnMissingPackageJSON", func() {
-		Context("package.json exists", func() {
+	Describe("ReadPackageJson", func() {
+		Context("package.json has cacheDirectories", func() {
 			BeforeEach(func() {
-				ioutil.WriteFile(filepath.Join(buildDir, "package.json"), []byte("{}"), 0644)
+				packageJSON := `
+{
+  "cacheDirectories" : [
+		"first",
+		"second"
+	]
+}
+`
+				Expect(ioutil.WriteFile(filepath.Join(buildDir, "package.json"), []byte(packageJSON), 0644)).To(Succeed())
 			})
-			It("logs nothing", func() {
-				Expect(finalizer.WarnMissingPackageJSON()).To(BeNil())
-				Expect(buffer.String()).To(Equal(""))
+
+			It("sets CacheDirs", func() {
+				Expect(finalizer.ReadPackageJson()).To(Succeed())
+				Expect(finalizer.CacheDirs).To(Equal([]string{"first", "second"}))
 			})
 		})
-		Context("package.json exists", func() {
-			It("warns", func() {
-				Expect(finalizer.WarnMissingPackageJSON()).To(BeNil())
+
+		Context("package.json has cache_directories", func() {
+			BeforeEach(func() {
+				packageJSON := `
+{
+  "cache_directories" : [
+		"third",
+		"fourth"
+	]
+}
+`
+				Expect(ioutil.WriteFile(filepath.Join(buildDir, "package.json"), []byte(packageJSON), 0644)).To(Succeed())
+			})
+
+			It("sets CacheDirs", func() {
+				Expect(finalizer.ReadPackageJson()).To(Succeed())
+				Expect(finalizer.CacheDirs).To(Equal([]string{"third", "fourth"}))
+			})
+		})
+
+		Context("package.json has prebuild script", func() {
+			BeforeEach(func() {
+				packageJSON := `
+{
+  "scripts" : {
+		"script": "script",
+		"heroku-prebuild": "makestuff",
+		"thing": "thing"
+	}
+}
+`
+				Expect(ioutil.WriteFile(filepath.Join(buildDir, "package.json"), []byte(packageJSON), 0644)).To(Succeed())
+			})
+
+			It("sets PreBuild", func() {
+				Expect(finalizer.ReadPackageJson()).To(Succeed())
+				Expect(finalizer.PreBuild).To(Equal("makestuff"))
+			})
+		})
+
+		Context("package.json has postbuild script", func() {
+			BeforeEach(func() {
+				packageJSON := `
+{
+  "scripts" : {
+		"script": "script",
+		"heroku-postbuild": "logstuff",
+		"thing": "thing"
+	}
+}
+`
+				Expect(ioutil.WriteFile(filepath.Join(buildDir, "package.json"), []byte(packageJSON), 0644)).To(Succeed())
+			})
+
+			It("sets PostBuild", func() {
+				Expect(finalizer.ReadPackageJson()).To(Succeed())
+				Expect(finalizer.PostBuild).To(Equal("logstuff"))
+			})
+		})
+
+		Context("package.json does not exist", func() {
+			It("warns user", func() {
+				Expect(finalizer.ReadPackageJson()).To(Succeed())
 				Expect(buffer.String()).To(ContainSubstring("**WARNING** No package.json found"))
+			})
+			It("initializes config based values", func() {
+				Expect(finalizer.ReadPackageJson()).To(Succeed())
+				Expect(finalizer.CacheDirs).To(Equal([]string{}))
 			})
 		})
 	})

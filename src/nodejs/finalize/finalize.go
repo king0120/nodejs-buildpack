@@ -12,23 +12,26 @@ import (
 )
 
 type Finalizer struct {
-	Stager *libbuildpack.Stager
+	Stager    *libbuildpack.Stager
+	CacheDirs []string
+	PreBuild  string
+	PostBuild string
 }
 
 func Run(f *Finalizer) error {
-	if err := f.TipVendorDependencies(); err != nil {
-		f.Stager.Log.Error(err.Error())
+	if err := f.ReadPackageJson(); err != nil {
+		f.Stager.Log.Error("Failed parsing package.json: %s", err.Error())
 		return err
 	}
 
-	if err := f.WarnMissingPackageJSON(); err != nil {
+	if err := f.TipVendorDependencies(); err != nil {
 		f.Stager.Log.Error(err.Error())
 		return err
 	}
 
 	f.ListNodeConfig(os.Environ())
 
-	cacher, err := cache.New(f.Stager)
+	cacher, err := cache.New(f.Stager, f.CacheDirs)
 	if err != nil {
 		f.Stager.Log.Error("Unable to initialize cache: %s", err.Error())
 		return err
@@ -47,6 +50,37 @@ func Run(f *Finalizer) error {
 	return nil
 }
 
+func (f *Finalizer) ReadPackageJson() error {
+	var p struct {
+		CacheDirs1 []string `json:"cacheDirectories"`
+		CacheDirs2 []string `json:"cache_directories"`
+		Scripts    struct {
+			PreBuild  string `json:"heroku-prebuild"`
+			PostBuild string `json:"heroku-postbuild"`
+		} `json:"scripts"`
+	}
+	f.CacheDirs = []string{}
+
+	if err := libbuildpack.NewJSON().Load(filepath.Join(f.Stager.BuildDir, "package.json"), &p); err != nil {
+		if os.IsNotExist(err) {
+			f.Stager.Log.Warning("No package.json found")
+			return nil
+		} else {
+			return err
+		}
+	}
+
+	if len(p.CacheDirs1) > 0 {
+		f.CacheDirs = p.CacheDirs1
+	} else if len(p.CacheDirs2) > 0 {
+		f.CacheDirs = p.CacheDirs2
+	}
+	f.PreBuild = p.Scripts.PreBuild
+	f.PostBuild = p.Scripts.PostBuild
+
+	return nil
+}
+
 func (f *Finalizer) TipVendorDependencies() error {
 	subdirs, err := hasSubdirs(filepath.Join(f.Stager.BuildDir, "node_modules"))
 	if err != nil {
@@ -57,18 +91,6 @@ func (f *Finalizer) TipVendorDependencies() error {
 			"http://docs.cloudfoundry.org/buildpacks/node/index.html#vendoring")
 	}
 
-	return nil
-}
-
-func (f *Finalizer) WarnMissingPackageJSON() error {
-	exists, err := libbuildpack.FileExists(filepath.Join(f.Stager.BuildDir, "package.json"))
-	if err != nil {
-		return err
-	}
-
-	if !exists {
-		f.Stager.Log.Warning("No package.json found")
-	}
 	return nil
 }
 

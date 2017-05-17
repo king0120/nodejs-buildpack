@@ -87,73 +87,27 @@ var _ = Describe("Cache", func() {
 		})
 
 		It("sets node version", func() {
-			newCacher, err := cache.New(stager)
+			newCacher, err := cache.New(stager, []string{})
 			Expect(err).To(BeNil())
 			Expect(newCacher.NodeVersion).To(Equal("6.9.3"))
 		})
 
 		It("sets npm version", func() {
-			newCacher, err := cache.New(stager)
+			newCacher, err := cache.New(stager, []string{})
 			Expect(err).To(BeNil())
 			Expect(newCacher.NPMVersion).To(Equal("4.5.6"))
 		})
 
 		It("sets yarn version", func() {
-			newCacher, err := cache.New(stager)
+			newCacher, err := cache.New(stager, []string{})
 			Expect(err).To(BeNil())
 			Expect(newCacher.YarnVersion).To(Equal("9.8.7"))
 		})
 
-		It("does not set PackageJSONCacheDirs", func() {
-			newCacher, err := cache.New(stager)
+		It("sets PackageJSONCacheDirs", func() {
+			newCacher, err := cache.New(stager, []string{"directory"})
 			Expect(err).To(BeNil())
-
-			empty := []string{}
-			Expect(newCacher.PackageJSONCacheDirs).To(Equal(empty))
-		})
-
-		Context("package.json has cacheDirectories", func() {
-			BeforeEach(func() {
-				packageJSON := `
-{
-  "cacheDirectories" : [
-		"first",
-		"second"
-	]
-}
-`
-				Expect(ioutil.WriteFile(filepath.Join(buildDir, "package.json"), []byte(packageJSON), 0644)).To(Succeed())
-
-			})
-
-			It("sets PackageJSONCacheDirs", func() {
-				newCacher, err := cache.New(stager)
-				Expect(err).To(BeNil())
-
-				Expect(newCacher.PackageJSONCacheDirs).To(Equal([]string{"first", "second"}))
-			})
-		})
-
-		Context("package.json has cache_directories", func() {
-			BeforeEach(func() {
-				packageJSON := `
-{
-  "cache_directories" : [
-		"third",
-		"fourth"
-	]
-}
-`
-				Expect(ioutil.WriteFile(filepath.Join(buildDir, "package.json"), []byte(packageJSON), 0644)).To(Succeed())
-
-			})
-
-			It("sets PackageJSONCacheDirs", func() {
-				newCacher, err := cache.New(stager)
-				Expect(err).To(BeNil())
-
-				Expect(newCacher.PackageJSONCacheDirs).To(Equal([]string{"third", "fourth"}))
-			})
+			Expect(newCacher.PackageJSONCacheDirs).To(Equal([]string{"directory"}))
 		})
 	})
 

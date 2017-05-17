@@ -22,7 +22,7 @@ type Cache struct {
 
 var defaultCacheDirs = []string{".npm", ".cache/yarn", "bower_components"}
 
-func New(stager *libbuildpack.Stager) (*Cache, error) {
+func New(stager *libbuildpack.Stager, cacheDirs []string) (*Cache, error) {
 	var err error
 	c := &Cache{Stager: stager}
 
@@ -38,9 +38,7 @@ func New(stager *libbuildpack.Stager) (*Cache, error) {
 		return nil, err
 	}
 
-	if c.PackageJSONCacheDirs, err = findPkgCacheDirs(c.Stager.BuildDir); err != nil {
-		return nil, err
-	}
+	c.PackageJSONCacheDirs = cacheDirs
 
 	return c, nil
 }
@@ -98,6 +96,22 @@ func (c *Cache) Save() error {
 	source, dirsToSave := c.selectCacheDirs()
 	c.Stager.Log.Info("Saving %d cacheDirectories (%s):", len(dirsToSave), source)
 
+	if err := c.saveCacheDirs(dirsToSave); err != nil {
+		return err
+
+	}
+
+	dirsToRemove := []string{".npm", ".cache/yarn"}
+	for _, dir := range dirsToRemove {
+		if err := os.RemoveAll(filepath.Join(c.Stager.BuildDir, dir)); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *Cache) saveCacheDirs(dirsToSave []string) error {
 	for _, dir := range dirsToSave {
 		dest := filepath.Join(c.Stager.CacheDir, "node", dir)
 		source := filepath.Join(c.Stager.BuildDir, dir)
@@ -119,13 +133,6 @@ func (c *Cache) Save() error {
 			}
 		} else {
 			c.Stager.Log.Info("- %s (nothing to cache)", dir)
-		}
-	}
-
-	dirsToRemove := []string{".npm", ".cache/yarn"}
-	for _, dir := range dirsToRemove {
-		if err := os.RemoveAll(filepath.Join(c.Stager.BuildDir, dir)); err != nil {
-			return err
 		}
 	}
 
@@ -185,25 +192,4 @@ func (c *Cache) findVersion(binary string) (string, error) {
 
 func (c *Cache) signature() string {
 	return fmt.Sprintf("%s; %s; %s", c.NodeVersion, c.NPMVersion, c.YarnVersion)
-}
-
-func findPkgCacheDirs(buildDir string) ([]string, error) {
-	var p struct {
-		Dirs1 []string `json:"cacheDirectories"`
-		Dirs2 []string `json:"cache_directories"`
-	}
-
-	if err := libbuildpack.NewJSON().Load(filepath.Join(buildDir, "package.json"), &p); err != nil {
-		if !os.IsNotExist(err) {
-			return nil, err
-		}
-	}
-
-	if len(p.Dirs1) > 0 {
-		return p.Dirs1, nil
-	} else if len(p.Dirs2) > 0 {
-		return p.Dirs2, nil
-	}
-
-	return []string{}, nil
 }

@@ -71,14 +71,9 @@ install_bins() {
     install_iojs "$iojs_engine" "$DEPS_DIR/$DEPS_IDX/node"
     echo "Using bundled npm version for iojs compatibility: `npm --version`"
   else
-    echo "The build dir is $BUILD_DIR"
     warn_node_engine "$node_engine"
-    install_oracle "/home/vcap/app/node"
-    echo "Listing /home/vcap/app/node"
-    ls /home/vcap/app/node
+    install_oracle "/home/vcap/app2/node"
     install_nodejs "$node_engine" "$DEPS_DIR/$DEPS_IDX/node"
-    echo "Listing /home/vcap/app/node"
-    ls /home/vcap/app/node
     install_npm "$npm_engine" "$DEPS_DIR/$DEPS_IDX/node"
   fi
 

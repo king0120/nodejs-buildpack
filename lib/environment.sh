@@ -4,6 +4,9 @@ create_default_env() {
   export NODE_MODULES_CACHE=${NODE_MODULES_CACHE:-true}
   export NODE_ENV=${NODE_ENV:-production}
   export NODE_VERBOSE=${NODE_VERBOSE:-false}
+  export LD_LIBRARY_PATH="/home/vcap/app/.heroku/node/instantclientbasic"
+  export OCI_LIB_DIR="/home/vcap/app/.heroku/node/instantclientbasic"
+  export OCI_INC_DIR="/home/vcap/app/.heroku/node/instantclientbasic/sdk/include"
 }
 
 list_node_config() {

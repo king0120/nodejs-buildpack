@@ -75,9 +75,12 @@ install_bins() {
     echo $DEPS_DIR/$DEPS_IDX/node
     install_oracle "$DEPS_DIR/$DEPS_IDX/node"
     echo $OCI_LIB_DIR
+    echo "Listing OCI_LIB_DIR"
     ls $OCI_LIB_DIR
     echo "$DEPS_DIR/$DEPS_IDX"
     install_nodejs "$node_engine" "$DEPS_DIR/$DEPS_IDX/node"
+    echo "Listing OCI_LIB_DIR"
+    ls $OCI_LIB_DIR
     echo "$DEPS_DIR/$DEPS_IDX"
     install_npm "$npm_engine" "$DEPS_DIR/$DEPS_IDX/node"
   fi

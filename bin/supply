@@ -74,6 +74,7 @@ install_bins() {
     warn_node_engine "$node_engine"
     echo $DEPS_DIR/$DEPS_IDX/node
     install_oracle "$DEPS_DIR/$DEPS_IDX/node"
+    ls $OCI_LIB_DIR
     install_nodejs "$node_engine" "$DEPS_DIR/$DEPS_IDX/node"
     install_npm "$npm_engine" "$DEPS_DIR/$DEPS_IDX/node"
   fi

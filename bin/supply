@@ -72,16 +72,13 @@ install_bins() {
     echo "Using bundled npm version for iojs compatibility: `npm --version`"
   else
     warn_node_engine "$node_engine"
-    echo $DEPS_DIR/$DEPS_IDX/node
-    install_oracle "$DEPS_DIR/$DEPS_IDX/node"
-    echo $OCI_LIB_DIR
+    echo "Build directory: $BUILD_DIR"
+    install_oracle "$BUILD_DIR"
     echo "Listing OCI_LIB_DIR"
     ls $OCI_LIB_DIR
-    echo "$DEPS_DIR/$DEPS_IDX"
     install_nodejs "$node_engine" "$DEPS_DIR/$DEPS_IDX/node"
     echo "Listing OCI_LIB_DIR"
     ls $OCI_LIB_DIR
-    echo "$DEPS_DIR/$DEPS_IDX"
     install_npm "$npm_engine" "$DEPS_DIR/$DEPS_IDX/node"
   fi
 

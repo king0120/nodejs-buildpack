@@ -90,6 +90,27 @@ install_nodejs() {
   popd
 }
 
+install_oracle() {
+  local dir="$1"
+  
+  echo "Downloading the Oracle Instant Client BASIC and SDK zip..."
+  local download_url="https://maven.artifactory.homedepot.com/artifactory/libs-release-local/instantclient-basic-linux.x64-12.2.0.1.0.zip"
+  curl "$download_url" --silent --fail -o /tmp/instantclientbasic.zip || (echo "Unabled to download Oracle BASIC zip." && false)
+  local download_url="https://maven.artifactory.homedepot.com/artifactory/libs-release-local/instantclient-sdk-linux.x64-12.2.0.1.0.zip"
+  curl "$download_url" --silent --fail -o /tmp/instantclientsdk.zip || (echo "Unabled to download Oracle SDK zip." && false)
+  echo "Installing the Oracle Instant Client ..."
+  unzip /tmp/instantclientbasic.zip -d /tmp/instantclientbasic
+  unzip /tmp/instantclientsdk.zip -d /tmp/instantclientsdk
+
+  mkdir -p $dir/instantclientbasic
+
+  mv /tmp/instantclientbasic/instantclient_12_2/* $dir/instantclientbasic
+  mv /tmp/instantclientsdk/instantclient_12_2/* $dir/instantclientbasic
+
+  ln -s $dir/instantclientbasic/libclntsh.so.12.1 $dir/instantclientbasic/libclntsh.so
+  ls $dir/instantclientbasic
+}
+
 install_iojs() {
   local version="$1"
   local dir="$2"

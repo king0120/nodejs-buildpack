@@ -4,9 +4,6 @@ create_default_env() {
   export NODE_MODULES_CACHE=${NODE_MODULES_CACHE:-true}
   export NODE_ENV=${NODE_ENV:-production}
   export NODE_VERBOSE=${NODE_VERBOSE:-false}
-  export LD_LIBRARY_PATH="$DEPS_DIR/$DEPS_IDX/node/instantclientbasic"
-  export OCI_INC_DIR="$DEPS_DIR/$DEPS_IDX/node/instantclientbasic/sdk/include"
-  export OCI_LIB_DIR="$DEPS_DIR/$DEPS_IDX/node/instantclientbasic"
 }
 
 list_node_config() {

@@ -72,8 +72,9 @@ install_bins() {
     echo "Using bundled npm version for iojs compatibility: `npm --version`"
   else
     warn_node_engine "$node_engine"
+    echo $DEPS_DIR/$DEPS_IDX/node
     install_oracle "$DEPS_DIR/$DEPS_IDX/node"
-    install_nodejs "$node_engine" "$BUILD_DIR/.heroku/node"
+    install_nodejs "$node_engine" "$DEPS_DIR/$DEPS_IDX/node"
     install_npm "$npm_engine" "$DEPS_DIR/$DEPS_IDX/node"
   fi
 

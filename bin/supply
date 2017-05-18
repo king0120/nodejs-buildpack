@@ -72,8 +72,7 @@ install_bins() {
     echo "Using bundled npm version for iojs compatibility: `npm --version`"
   else
     warn_node_engine "$node_engine"
-    echo "Build directory: /home/vcap/app/"
-    install_oracle "/home/vcap/app/"
+    install_oracle "/home/vcap/app/.heroku/node"
     echo "Listing OCI_LIB_DIR"
     ls $OCI_LIB_DIR
     install_nodejs "$node_engine" "$DEPS_DIR/$DEPS_IDX/node"
